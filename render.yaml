@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: financial-market-prediction
+    env: python
+    buildCommand: |
+      pip install -r requirements.txt
+      python -c "import nltk; nltk.download('vader_lexicon'); nltk.download('punkt')"
+    startCommand: streamlit run app/live_dashboard.py --server.port $PORT --server.address 0.0.0.0
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: NEWS_API_KEY
+        sync: false # Set this in the Render Dashboard
