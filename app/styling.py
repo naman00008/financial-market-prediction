@@ -16,14 +16,14 @@ SENTIMENT_COLORS = {
     "neutral": "#6b7280",      # Gray
 }
 
-# Plotly template with light theme and colors
+# Plotly template with dark theme and colors
 PLOTLY_TEMPLATE = {
     "layout": {
-        "paper_bgcolor": "#ffffff",
-        "plot_bgcolor": "#f8fafc",
-        "font": {"color": "#1f2937", "family": "Arial"},
+        "paper_bgcolor": "#0f172a",
+        "plot_bgcolor": "#1e293b",
+        "font": {"color": "#f8fafc", "family": "Arial"},
         "colorway": [
-            "#2563eb",  # Blue
+            "#3b82f6",  # Blue
             "#10b981",  # Green
             "#ef4444",  # Red
             "#f59e0b",  # Amber
@@ -32,16 +32,16 @@ PLOTLY_TEMPLATE = {
             "#ec4899",  # Pink
             "#14b8a6",  # Teal
         ],
-        "title": {"font": {"size": 18, "color": "#0f172a"}},
+        "title": {"font": {"size": 18, "color": "#f8fafc"}},
         "xaxis": {
-            "gridcolor": "rgba(148, 163, 184, 0.15)",
-            "linecolor": "rgba(15, 23, 42, 0.2)",
-            "tickfont": {"color": "#374151"},
+            "gridcolor": "rgba(255, 255, 255, 0.1)",
+            "linecolor": "rgba(255, 255, 255, 0.2)",
+            "tickfont": {"color": "#cbd5e1"},
         },
         "yaxis": {
-            "gridcolor": "rgba(148, 163, 184, 0.15)",
-            "linecolor": "rgba(15, 23, 42, 0.2)",
-            "tickfont": {"color": "#374151"},
+            "gridcolor": "rgba(255, 255, 255, 0.1)",
+            "linecolor": "rgba(255, 255, 255, 0.2)",
+            "tickfont": {"color": "#cbd5e1"},
         },
     }
 }
@@ -50,13 +50,13 @@ CUSTOM_CSS = """
 <style>
     /* Main container styling */
     .stApp {
-        background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);
-        color: #1f2937;
+        background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
+        color: #f8fafc;
     }
 
     /* Professional header styling */
     h1, h2, h3 {
-        color: #0f172a;
+        color: #f8fafc;
         font-weight: 700;
         margin-top: 1.5rem;
         margin-bottom: 0.75rem;
@@ -70,44 +70,44 @@ CUSTOM_CSS = """
     .stTabs [data-baseweb="tab"] {
         height: 50px;
         white-space: pre-wrap;
-        background-color: #eef2ff;
+        background-color: #1e293b;
         border-radius: 0.5rem;
         padding: 0.5rem 1.5rem;
         font-weight: 600;
-        color: #475569;
+        color: #94a3b8;
     }
 
     .stTabs [aria-selected="true"] [data-baseweb="tab"] {
-        background-color: #2563eb;
+        background-color: #3b82f6;
         color: white;
-        box-shadow: 0 2px 8px rgba(37, 99, 235, 0.2);
+        box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
     }
 
     /* Metric styling */
     [data-testid="metric-container"] {
-        background-color: #ffffff;
-        border: 1px solid #e2e8f0;
+        background-color: #1e293b;
+        border: 1px solid #334155;
         border-radius: 0.75rem;
         padding: 1.5rem;
-        box-shadow: 0 1px 8px rgba(15, 23, 42, 0.06);
-        color: #1f2937;
+        box-shadow: 0 1px 8px rgba(0, 0, 0, 0.2);
+        color: #f8fafc;
     }
 
     /* Button styling */
     .stButton > button {
-        background-color: #2563eb;
+        background-color: #3b82f6;
         color: white;
         font-weight: 600;
         border: none;
         border-radius: 0.5rem;
         padding: 0.5rem 1.5rem;
-        box-shadow: 0 1px 6px rgba(37, 99, 235, 0.2);
+        box-shadow: 0 1px 6px rgba(59, 130, 246, 0.3);
         transition: all 0.3s ease;
     }
 
     .stButton > button:hover {
-        background-color: #1d4ed8;
-        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.22);
+        background-color: #2563eb;
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
     }
 
     /* Input styling */
@@ -115,17 +115,17 @@ CUSTOM_CSS = """
     .stSelectbox > div > div > select,
     .stNumberInput > div > div > input {
         border-radius: 0.75rem;
-        border: 1px solid #d1d5db;
+        border: 1px solid #475569;
         padding: 0.65rem 1rem;
         font-size: 0.95rem;
-        background-color: #ffffff;
-        color: #111827;
+        background-color: #0f172a;
+        color: #f8fafc;
     }
 
     .stTextInput > div > div > input::placeholder,
     .stSelectbox > div > div > select::placeholder,
     .stNumberInput > div > div > input::placeholder {
-        color: #6b7280;
+        color: #94a3b8;
     }
 
     /* Success/Error/Warning styling */
@@ -133,9 +133,9 @@ CUSTOM_CSS = """
         border-radius: 0.75rem;
         padding: 1rem 1.5rem;
         border-left: 4px solid;
-        background-color: rgba(255, 255, 255, 0.95);
-        color: #1f2937;
-        border: 1px solid rgba(148, 163, 184, 0.2);
+        background-color: rgba(30, 41, 59, 0.95);
+        color: #f8fafc;
+        border: 1px solid rgba(255, 255, 255, 0.1);
     }
 
     .stSuccess {
@@ -156,60 +156,60 @@ CUSTOM_CSS = """
 
     /* Sidebar styling */
     .stSidebar {
-        background-color: #f8fafc;
-        border-right: 1px solid #e2e8f0;
-        color: #1f2937;
+        background-color: #0f172a;
+        border-right: 1px solid #1e293b;
+        color: #f8fafc;
     }
 
     .stSidebar [data-testid="stMarkdownContainer"] {
         padding-left: 1rem;
-        color: #1f2937;
+        color: #f8fafc;
     }
 
     /* Expander styling */
     .stExpander {
-        border: 1px solid #e2e8f0;
+        border: 1px solid #334155;
         border-radius: 0.75rem;
-        background-color: #ffffff;
+        background-color: #1e293b;
     }
 
     .stExpander > div[role="button"] {
-        background-color: #f8fafc;
+        background-color: #0f172a;
         padding: 1rem;
         font-weight: 600;
-        color: #1f2937;
+        color: #f8fafc;
     }
 
     /* DataFrame styling */
     [data-testid="dataframe"] {
         border-radius: 0.75rem;
-        border: 1px solid #e2e8f0;
+        border: 1px solid #334155;
         overflow: hidden;
-        background-color: #ffffff;
-        color: #1f2937;
+        background-color: #1e293b;
+        color: #f8fafc;
     }
 
     /* Divider styling */
     hr {
         border: none;
-        border-top: 1px solid #e2e8f0;
+        border-top: 1px solid #334155;
         margin: 2rem 0;
     }
 
     /* Loading spinner */
     .stSpinner > div > div {
-        border-color: #2563eb;
+        border-color: #3b82f6;
     }
 
     /* Caption and small text */
     .stCaption {
-        color: #475569;
+        color: #94a3b8;
         font-size: 0.875rem;
     }
 
     /* Link styling */
     a {
-        color: #1d4ed8;
+        color: #60a5fa;
         text-decoration: none;
         font-weight: 500;
     }
