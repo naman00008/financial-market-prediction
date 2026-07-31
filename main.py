@@ -7,7 +7,7 @@ import sys
 
 def main():
     project_root = os.path.abspath(os.path.dirname(__file__))
-    dashboard_path = os.path.join(project_root, "app", "live_dashboard.py")
+    dashboard_path = os.path.join(project_root, "app", "dashboard.py")
 
     print("Starting Streamlit dashboard...")
 

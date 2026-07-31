@@ -1,4 +1,4 @@
-from app.live_dashboard import main
+from app.dashboard import main
 
 
 if __name__ == "__main__":
