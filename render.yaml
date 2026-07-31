@@ -2,6 +2,7 @@ services:
   - type: web
     name: financial-market-prediction
     env: python
+    plan: free
     buildCommand: |
       pip install -r requirements.txt
       python -c "import nltk; nltk.download('vader_lexicon'); nltk.download('punkt')"
