@@ -1,92 +1,116 @@
 """
-Live Cloud-to-Local User Directory Synchronizer
-Fetches all live user registrations, directories, activity reports, and spreadsheets
-from the deployed website on Render directly into your local Mac's `data/users/` directory.
-
-Usage:
-    python3 sync_live_users.py          # Run once to sync all users immediately
-    python3 sync_live_users.py --live   # Continuous live sync mode (every 5 seconds)
+Real-Time Live User Audit & Directory Synchronizer
+Connects to the MarketPulse Live Cloud Stream.
+Whenever any user from any computer registers, signs in, or moves on the website:
+1. Displays the live activity trail in this terminal in real-time.
+2. Automatically creates and updates their folder in `data/users/<username>/` with:
+   - USER_PROFILE_&_ACTIVITY_REPORT.txt (Dossier)
+   - activity_log.csv (Excel Spreadsheet)
+   - searched_stocks.txt (Stocks viewed)
+   - profile.json (Metadata)
 """
 
 import json
 import os
 import sys
 import time
-import urllib.request
-import urllib.error
-from src.tracker import apply_backend_data_bundle, USERS_DIR
+from src.cloud_stream import listen_live_stream
+from src.tracker import (
+    ensure_user_directory,
+    track_activity,
+    update_user_human_readable_report,
+    USERS_DIR
+)
 
-PRIMARY_URL = "https://financial-market-prediction.onrender.com/app/static/users_sync.json"
-SECONDARY_URL = "https://financial-market-prediction.onrender.com/api/sync"
-
-
-def fetch_from_url(url: str) -> dict:
-    req = urllib.request.Request(
-        url,
-        headers={"User-Agent": "MarketPulseLiveSync/2.0"}
-    )
-    with urllib.request.urlopen(req, timeout=12) as resp:
-        raw_data = resp.read().decode("utf-8")
-        return json.loads(raw_data)
+seen_events = set()
 
 
-def perform_sync(silent: bool = False) -> bool:
-    data = None
-    last_err = None
+def handle_incoming_cloud_event(event: dict) -> None:
+    event_id = f"{event.get('epoch')}_{event.get('username')}_{event.get('action')}"
+    if event_id in seen_events:
+        return
+    seen_events.add(event_id)
 
-    for url in [PRIMARY_URL, SECONDARY_URL]:
-        try:
-            data = fetch_from_url(url)
-            if data and data.get("status") == "success":
-                break
-        except Exception as e:
-            last_err = e
-            continue
+    username = event.get("username", "guest")
+    action = event.get("action", "UNKNOWN")
+    timestamp = event.get("timestamp", time.strftime("%Y-%m-%d %H:%M:%S UTC"))
+    details = event.get("details", {})
+    user_prof = event.get("user_profile", {})
 
-    if data and data.get("status") == "success":
-        count = apply_backend_data_bundle(data)
-        if not silent:
-            print(f"[{time.strftime('%H:%M:%S')}] ✅ Synced {count} live user folder(s) from cloud:")
-            for u in sorted(data.get("users", {}).keys()):
-                print(f"   • 📁 @{u}")
-        return True
+    # Ensure user folder exists on Mac
+    ensure_user_directory(username, user_prof if user_prof else None)
+
+    # Format human-readable terminal line
+    action_icon = "🔵"
+    summary_text = ""
+
+    if action == "USER_REGISTRATION":
+        action_icon = "🟢"
+        full_name = details.get("full_name") or user_prof.get("full_name") or username
+        email = details.get("email") or user_prof.get("email") or "N/A"
+        tier = details.get("tier") or user_prof.get("tier") or "PRO"
+        summary_text = f"NEW ACCOUNT CREATED -> Name: {full_name} | Email: {email} | Tier: {tier.upper()}"
+
+    elif action == "USER_LOGIN":
+        action_icon = "🔐"
+        email = details.get("email") or user_prof.get("email") or "N/A"
+        summary_text = f"USER LOGGED IN -> Email: {email}"
+
+    elif action == "USER_LOGOUT":
+        action_icon = "🚪"
+        summary_text = "USER LOGGED OUT"
+
+    elif action == "VIEW_ANALYSIS":
+        action_icon = "📈"
+        ticker = details.get("ticker", "N/A")
+        period = details.get("time_range", "1y")
+        summary_text = f"VIEWED STOCK ANALYSIS -> Ticker: {ticker} (Period: {period})"
+
+    elif action == "VIEW_ML_PREDICTIONS":
+        action_icon = "🤖"
+        ticker = details.get("ticker", "N/A")
+        model = details.get("model", "N/A")
+        summary_text = f"RAN MACHINE LEARNING PREDICTION -> Ticker: {ticker} | Model: {model}"
+
+    elif action == "VIEW_PORTFOLIO":
+        action_icon = "💼"
+        portfolio_name = details.get("portfolio", "N/A")
+        summary_text = f"ANALYZED PORTFOLIO -> Strategy: {portfolio_name}"
+
+    elif action == "VIEW_COMPARISON":
+        action_icon = "⚖️"
+        tickers = details.get("tickers", "N/A")
+        summary_text = f"COMPARED STOCKS -> {tickers}"
+
     else:
-        if not silent:
-            if isinstance(last_err, urllib.error.HTTPError):
-                if last_err.code == 404:
-                    print(f"[{time.strftime('%H:%M:%S')}] ⏳ Cloud deployment is finalizing... (HTTP 404)")
-                else:
-                    print(f"[{time.strftime('%H:%M:%S')}] ⏳ Cloud server status: HTTP {last_err.code}")
-            elif isinstance(last_err, urllib.error.URLError):
-                print(f"[{time.strftime('%H:%M:%S')}] ⏳ Connecting to cloud server ({last_err.reason})...")
-            else:
-                print(f"[{time.strftime('%H:%M:%S')}] ⏳ Waiting for cloud update ({last_err})...")
-        return False
+        action_icon = "⚡"
+        details_str = ", ".join(f"{k}: {v}" for k, v in details.items())
+        summary_text = f"{action} -> {details_str}"
+
+    # Print live trail in terminal
+    local_time = time.strftime("%H:%M:%S")
+    print(f"[{local_time}] {action_icon} @{username:<14} | {summary_text}")
+
+    # Write directly to local user directory on Mac
+    track_activity(action, username, details, skip_broadcast=True)
 
 
 def main():
-    live_mode = "--live" in sys.argv or "--watch" in sys.argv
+    print("\n" + "=" * 80)
+    print(" 📡 MARKETPULSE REAL-TIME LIVE AUDIT STREAM & BACKEND SYNCHRONIZER")
+    print("=" * 80)
+    print(f" • Local Storage Directory:  {USERS_DIR}")
+    print(f" • Live Activity Feed:       🟢 CONNECTED & LISTENING (Sub-second latency)")
+    print(" • Features:")
+    print("   1. Live activity trail for every user across any computer / phone.")
+    print("   2. Automatic creation & update of data/users/<username>/ in Finder.")
+    print("=" * 80)
+    print(" Waiting for live user activities on website (Press Ctrl+C to stop)...\n")
 
-    print("\n" + "=" * 70)
-    print(" 🔄 MARKETPULSE CLOUD BACKEND SYNCHRONIZER")
-    print("=" * 70)
-    print(f" Target Local Folder: {USERS_DIR}")
-    print(f" Source Cloud URL:    {PRIMARY_URL}")
-    print("=" * 70)
-
-    if live_mode:
-        print(" 🟢 LIVE REAL-TIME SYNC MODE ACTIVE (Polling every 5s)")
-        print(" Press Ctrl+C to stop.\n")
-        try:
-            while True:
-                perform_sync(silent=False)
-                time.sleep(5)
-        except KeyboardInterrupt:
-            print("\n Live sync stopped.")
-    else:
-        perform_sync(silent=False)
-        print("\n✅ Sync complete. Open Finder -> data/users/ to inspect user dossiers!")
-        print("=" * 70 + "\n")
+    try:
+        listen_live_stream(handle_incoming_cloud_event)
+    except KeyboardInterrupt:
+        print("\n Stream listener stopped.")
 
 
 if __name__ == "__main__":

@@ -155,7 +155,8 @@ def track_activity(
     action: str,
     username: Optional[str] = None,
     details: Optional[Dict[str, Any]] = None,
-    session_id: Optional[str] = None
+    session_id: Optional[str] = None,
+    skip_broadcast: bool = False
 ) -> None:
     """
     Record an audit log entry for any user interaction in real time.
@@ -194,7 +195,8 @@ def track_activity(
     # 2. User-specific directory records
     if username and username != "guest":
         try:
-            user_folder = ensure_user_directory(username)
+            safe_username = "".join(c for c in username if c.isalnum() or c in ("_", "-")).lower()
+            user_folder = ensure_user_directory(safe_username)
             
             # JSONL Log
             user_log_path = os.path.join(user_folder, "activity_logs", "activity.jsonl")
@@ -228,10 +230,22 @@ def track_activity(
                     json.dump(prof, f, indent=2)
 
             # Update Human-Readable Plain Text Report
-            update_user_human_readable_report(username)
+            update_user_human_readable_report(safe_username)
 
             # Publish updated live static sync files
             publish_static_sync_payload()
+
+            # Publish to real-time live audit stream
+            if not skip_broadcast:
+                try:
+                    from src.cloud_stream import publish_cloud_event
+                    prof_data = {}
+                    if os.path.exists(profile_path):
+                        with open(profile_path, "r", encoding="utf-8") as f:
+                            prof_data = json.load(f)
+                    publish_cloud_event(action, safe_username, det, prof_data)
+                except Exception:
+                    pass
 
         except Exception:
             pass
