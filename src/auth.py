@@ -1,7 +1,8 @@
 """
 Authentication and User Management Module
 Provides secure user registration, password hashing (PBKDF2-HMAC-SHA256),
-credential verification, and SQLite user database management.
+credential verification, SQLite user database management, and automatic
+per-user filesystem directory initialization.
 """
 
 import hashlib
@@ -12,7 +13,9 @@ import sqlite3
 from datetime import datetime
 from typing import Any, Dict, Optional, Tuple
 
-# Path to database directory and file
+from src.tracker import ensure_user_directory, track_activity
+
+# Database storage path
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 DATA_DIR = os.path.join(BASE_DIR, "data")
 DB_PATH = os.path.join(DATA_DIR, "users.db")
@@ -50,7 +53,7 @@ def verify_password(password: str, stored_hash: str, salt: str) -> bool:
 
 
 def init_auth_db() -> None:
-    """Initialize database tables and seed default accounts if missing."""
+    """Initialize database tables."""
     with get_db_connection() as conn:
         cursor = conn.cursor()
         cursor.execute("""
@@ -61,31 +64,11 @@ def init_auth_db() -> None:
                 password_hash TEXT NOT NULL,
                 salt TEXT NOT NULL,
                 full_name TEXT,
-                tier TEXT DEFAULT 'free',
+                tier TEXT DEFAULT 'pro',
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
         conn.commit()
-
-        # Check if default demo accounts exist, seed if not
-        cursor.execute("SELECT COUNT(*) as count FROM users")
-        row = cursor.fetchone()
-        if row and row["count"] == 0:
-            # Seed default admin and demo user
-            admin_hash, admin_salt = hash_password("admin123")
-            demo_hash, demo_salt = hash_password("demo123")
-            
-            cursor.execute("""
-                INSERT INTO users (username, email, password_hash, salt, full_name, tier)
-                VALUES (?, ?, ?, ?, ?, ?)
-            """, ("admin", "admin@marketpulse.io", admin_hash, admin_salt, "System Administrator", "admin"))
-            
-            cursor.execute("""
-                INSERT INTO users (username, email, password_hash, salt, full_name, tier)
-                VALUES (?, ?, ?, ?, ?, ?)
-            """, ("demo_user", "demo@marketpulse.io", demo_hash, demo_salt, "Demo Trader", "pro"))
-            
-            conn.commit()
 
 
 def register_user(
@@ -93,15 +76,14 @@ def register_user(
     email: str,
     password: str,
     full_name: str = "",
-    tier: str = "free"
+    tier: str = "pro"
 ) -> Tuple[bool, str]:
     """
-    Register a new user in the database.
+    Register a new user in the SQLite database and create their dedicated folder.
     Returns (success: bool, message: str).
     """
     init_auth_db()
     
-    # Input validation
     username = username.strip()
     email = email.strip().lower()
     full_name = full_name.strip()
@@ -110,16 +92,13 @@ def register_user(
         return False, "Username must be at least 3 characters long."
     
     if not re.match(r"^[a-zA-Z0-9_]+$", username):
-        return False, "Username may only contain alphanumeric characters and underscores."
+        return False, "Username may only contain letters, numbers, and underscores."
         
     if not email or not re.match(r"^[^@]+@[^@]+\.[^@]+$", email):
-        return False, "Please enter a valid email address."
+        return False, "Please provide a valid corporate or personal email address."
         
     if not password or len(password) < 6:
         return False, "Password must be at least 6 characters long."
-
-    if tier not in ("free", "pro", "admin"):
-        tier = "free"
 
     pwd_hash, salt = hash_password(password)
 
@@ -131,13 +110,34 @@ def register_user(
                 VALUES (?, ?, ?, ?, ?, ?)
             """, (username, email, pwd_hash, salt, full_name or username, tier))
             conn.commit()
-        return True, "Account created successfully! You can now log in."
+            user_id = cursor.lastrowid
+
+        user_info = {
+            "id": user_id,
+            "username": username,
+            "email": email,
+            "full_name": full_name or username,
+            "tier": tier,
+            "created_at": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
+        }
+
+        # 1. Create dedicated user folder: data/users/<username>/
+        ensure_user_directory(username, user_info)
+
+        # 2. Record registration audit event
+        track_activity(
+            action="USER_REGISTRATION",
+            username=username,
+            details={"email": email, "full_name": full_name, "tier": tier}
+        )
+
+        return True, "Account created successfully! You are now authorized."
     except sqlite3.IntegrityError as e:
         err_msg = str(e).lower()
         if "username" in err_msg:
-            return False, f"Username '{username}' is already taken. Please choose another."
+            return False, f"Username '{username}' is already registered. Please choose another."
         elif "email" in err_msg:
-            return False, f"Email '{email}' is already registered. Please log in instead."
+            return False, f"Email '{email}' is already registered. Please sign in."
         return False, "An account with these details already exists."
     except Exception as e:
         return False, f"Database error: {e}"
@@ -165,49 +165,34 @@ def authenticate_user(username_or_email: str, password: str) -> Tuple[bool, str,
             
             user = cursor.fetchone()
             if not user:
-                return False, "Invalid username/email or password.", None
+                return False, "Invalid credentials. Please verify username and password.", None
 
             if not verify_password(password, user["password_hash"], user["salt"]):
-                return False, "Invalid username/email or password.", None
+                return False, "Invalid credentials. Please verify username and password.", None
 
             user_data = {
                 "id": user["id"],
                 "username": user["username"],
                 "email": user["email"],
                 "full_name": user["full_name"] or user["username"],
-                "tier": user["tier"] or "free",
+                "tier": user["tier"] or "pro",
                 "created_at": user["created_at"],
             }
-            return True, f"Welcome back, {user_data['full_name']}!", user_data
+
+            # Ensure user directory structure exists
+            ensure_user_directory(user["username"], user_data)
+
+            # Record login audit event
+            track_activity(
+                action="USER_LOGIN",
+                username=user["username"],
+                details={"identifier_used": identifier}
+            )
+
+            return True, f"Welcome back, {user_data['full_name']}.", user_data
     except Exception as e:
         return False, f"Authentication error: {e}", None
 
 
-def get_user_info(username_or_email: str) -> Optional[Dict[str, Any]]:
-    """Retrieve non-sensitive user information."""
-    init_auth_db()
-    try:
-        with get_db_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute("""
-                SELECT id, username, email, full_name, tier, created_at
-                FROM users
-                WHERE username = ? OR email = ?
-            """, (username_or_email.strip(), username_or_email.strip().lower()))
-            user = cursor.fetchone()
-            if user:
-                return {
-                    "id": user["id"],
-                    "username": user["username"],
-                    "email": user["email"],
-                    "full_name": user["full_name"] or user["username"],
-                    "tier": user["tier"] or "free",
-                    "created_at": user["created_at"],
-                }
-    except Exception:
-        pass
-    return None
-
-
-# Initialize on import
+# Initialize database table on module load
 init_auth_db()

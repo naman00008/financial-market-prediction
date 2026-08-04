@@ -1,16 +1,17 @@
 """
-Authentication UI and Session Management Component
-Provides modular feature-level gatekeeping, sidebar profile widgets,
-and clean single-point authentication for protected financial terminal features.
+Institutional Authentication UI & Feature Gatekeeper
+Provides professional, secure single-point authentication and automated
+user directory management. No shortcuts, demo bypasses, or playful elements.
 """
 
 import streamlit as st
 from typing import Optional, Dict, Any
 from src.auth import authenticate_user, register_user, init_auth_db
+from src.tracker import track_activity
 
 
 def init_session_auth() -> None:
-    """Initialize authentication keys in Streamlit session state."""
+    """Initialize authentication state in Streamlit session."""
     init_auth_db()
     if "authenticated" not in st.session_state:
         st.session_state.authenticated = False
@@ -19,29 +20,32 @@ def init_session_auth() -> None:
 
 
 def logout_user() -> None:
-    """Log out the active user and reset session state."""
+    """Log out active session and record audit event."""
+    user = st.session_state.get("user")
+    uname = user.get("username") if user else "guest"
+    track_activity("USER_LOGOUT", username=uname, details={"reason": "user_initiated"})
     st.session_state.authenticated = False
     st.session_state.user = None
     st.rerun()
 
 
 def login_user(user_data: Dict[str, Any]) -> None:
-    """Set active user session and trigger rerun."""
+    """Set active user session and trigger interface refresh."""
     st.session_state.authenticated = True
     st.session_state.user = user_data
+    track_activity("SESSION_STARTED", username=user_data.get("username"), details={"tier": user_data.get("tier")})
     st.rerun()
 
 
 def is_authenticated() -> bool:
-    """Check if the current session has an authenticated user."""
+    """Check if current session is authenticated."""
     return bool(st.session_state.get("authenticated", False) and st.session_state.get("user"))
 
 
 def render_sidebar_auth_widget() -> None:
     """
-    Render authentication status in the sidebar:
-    - If authenticated: Displays user profile card (Avatar, Username, Tier, Sign Out).
-    - If guest: Keeps sidebar clean and uncluttered (all login forms are centralized in the main content).
+    Render professional user profile in sidebar if authenticated.
+    Keeps sidebar completely clean and unobtrusive for guests.
     """
     init_session_auth()
     user = st.session_state.get("user")
@@ -49,139 +53,136 @@ def render_sidebar_auth_widget() -> None:
     if is_authenticated() and user:
         full_name = user.get("full_name", user.get("username", "User"))
         username = user.get("username", "user")
-        tier = user.get("tier", "free").lower()
-
-        tier_config = {
-            "admin": ("ADMINISTRATOR", "#8b5cf6", "rgba(139, 92, 246, 0.15)"),
-            "pro": ("PRO TIER", "#38bdf8", "rgba(56, 189, 248, 0.15)"),
-            "free": ("STANDARD TIER", "#10b981", "rgba(16, 185, 129, 0.15)"),
-        }
-        badge_text, badge_color, badge_bg = tier_config.get(tier, tier_config["free"])
+        tier = user.get("tier", "pro").upper()
 
         st.sidebar.markdown(f"""
-            <div class="sidebar-user-card">
-                <div style="display: flex; align-items: center; gap: 12px;">
-                    <div class="user-avatar-circle">{username[:2].upper()}</div>
-                    <div style="flex: 1; overflow: hidden;">
-                        <div style="font-weight: 600; font-size: 0.92rem; color: #f8fafc; white-space: nowrap; text-overflow: ellipsis; overflow: hidden;">
+            <div style="background: rgba(15, 23, 42, 0.75); border: 1px solid #1e293b; border-radius: 8px; padding: 14px; margin-bottom: 16px;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <div style="width: 36px; height: 36px; border-radius: 6px; background: #0284c7; color: #ffffff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.85rem; letter-spacing: 0.5px;">
+                        {username[:2].upper()}
+                    </div>
+                    <div style="flex: 1; min-width: 0;">
+                        <div style="color: #f8fafc; font-weight: 600; font-size: 0.88rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
                             {full_name}
                         </div>
-                        <div style="font-size: 0.78rem; color: #94a3b8;">@{username}</div>
+                        <div style="color: #64748b; font-size: 0.75rem;">@{username}</div>
                     </div>
                 </div>
-                <div style="margin-top: 10px; display: flex; justify-content: space-between; align-items: center;">
-                    <span style="background: {badge_bg}; color: {badge_color}; border: 1px solid {badge_color}; padding: 2px 8px; border-radius: 4px; font-size: 0.72rem; font-weight: 600; letter-spacing: 0.5px;">
-                        {badge_text}
+                <div style="margin-top: 10px; padding-top: 8px; border-top: 1px solid #1e293b; display: flex; justify-content: space-between; align-items: center;">
+                    <span style="background: rgba(14, 165, 233, 0.12); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 4px; padding: 2px 6px; font-size: 0.68rem; font-weight: 700; letter-spacing: 0.5px;">
+                        {tier} MEMBER
                     </span>
-                    <span style="color: #64748b; font-size: 0.72rem; font-weight: 500;">AUTHENTICATED</span>
+                    <span style="color: #10b981; font-size: 0.72rem; font-weight: 600;">ACTIVE</span>
                 </div>
             </div>
         """, unsafe_allow_html=True)
 
-        if st.sidebar.button("Sign Out", use_container_width=True, help="End active session"):
+        if st.sidebar.button("Sign Out", use_container_width=True):
             logout_user()
 
 
 def render_feature_gate(feature_name: str, description: str, key_suffix: str = "default") -> bool:
     """
-    Single Centralized Feature Gatekeeper:
-    - If user is authenticated, returns True and unlocks feature immediately.
-    - If unauthenticated, renders a single, clean central login/registration portal.
+    Institutional Feature Gatekeeper:
+    - Returns True if user is authenticated.
+    - If unauthenticated, renders a single high-contrast institutional sign-in card.
+    - No demo bypass shortcuts. Requires registered user login.
     """
     init_session_auth()
     
     if is_authenticated():
         return True
 
-    # Render clean, single central gatekeeper card
+    # Track that an unauthenticated user arrived at this gated feature
+    track_activity("VIEW_GATED_FEATURE_PROMPT", username="guest", details={"feature": feature_name})
+
+    # Render clean, sleek locked header
     st.markdown(f"""
-        <div class="auth-hero-banner" style="margin-top: 1rem; padding: 2rem 1.5rem 1.5rem 1.5rem;">
-            <div class="auth-badge">AUTHENTICATION REQUIRED</div>
-            <h2 class="auth-title" style="font-size: 1.8rem;">{feature_name}</h2>
-            <p class="auth-subtitle">
+        <div style="background: linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 41, 59, 0.9) 100%); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 12px; padding: 2rem 2rem 1.8rem 2rem; margin: 1.5rem auto 2rem auto; text-align: center; max-width: 800px; box-shadow: 0 10px 30px -10px rgba(0,0,0,0.5);">
+            <div style="display: inline-block; background: rgba(56, 189, 248, 0.12); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 4px; padding: 4px 12px; font-size: 0.72rem; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; margin-bottom: 0.75rem;">
+                RESTRICTED ACCESS
+            </div>
+            <h2 style="color: #ffffff; font-size: 1.75rem; font-weight: 700; margin: 0.25rem 0 0.75rem 0; letter-spacing: -0.02em;">
+                {feature_name}
+            </h2>
+            <p style="color: #94a3b8; font-size: 0.92rem; max-width: 620px; margin: 0 auto; line-height: 1.5;">
                 {description}
-            </p>
-            <p style="color: #64748b; font-size: 0.85rem; margin-top: 8px;">
-                Please sign in with your account or register for free access to unlock this module.
             </p>
         </div>
     """, unsafe_allow_html=True)
 
-    gate_col1, gate_col2, gate_col3 = st.columns([1, 2.4, 1])
+    col_l, col_center, col_r = st.columns([1, 2.2, 1])
 
-    with gate_col2:
-        st.markdown('<div class="auth-card-container">', unsafe_allow_html=True)
-        gate_tab_login, gate_tab_signup = st.tabs(["Sign In", "Create Account"])
+    with col_center:
+        st.markdown("""
+            <div style="background: #0f172a; border: 1px solid #1e293b; border-radius: 12px; padding: 1.5rem; box-shadow: 0 15px 35px -10px rgba(0,0,0,0.6);">
+        """, unsafe_allow_html=True)
+
+        tab_signin, tab_register = st.tabs(["Sign In", "Create Account"])
 
         # ==========================================
-        # LOGIN TAB
+        # SIGN IN TAB
         # ==========================================
-        with gate_tab_login:
-            st.markdown("<h4 style='margin-top: 0; color: #f8fafc;'>Sign In to Unlock</h4>", unsafe_allow_html=True)
+        with tab_signin:
+            st.markdown("<p style='color: #64748b; font-size: 0.82rem; margin: 0.5rem 0 1rem 0;'>Enter your authorized credentials to access this analytics engine.</p>", unsafe_allow_html=True)
             
-            with st.form(f"gate_login_form_{key_suffix}"):
-                username_input = st.text_input("Username or Email", placeholder="demo_user or email@domain.com", key=f"gate_u_{key_suffix}")
-                password_input = st.text_input("Password", type="password", placeholder="••••••••", key=f"gate_p_{key_suffix}")
-                submitted = st.form_submit_button("Sign In & Unlock Feature", use_container_width=True)
+            with st.form(f"gate_auth_form_{key_suffix}"):
+                login_id = st.text_input("Username or Email", placeholder="your.name@company.com", key=f"gate_u_{key_suffix}")
+                login_pwd = st.text_input("Password", type="password", placeholder="••••••••", key=f"gate_p_{key_suffix}")
                 
-                if submitted:
-                    if not username_input or not password_input:
-                        st.error("Please enter both username/email and password.")
+                auth_btn = st.form_submit_button("Sign In & Access Module", use_container_width=True)
+                
+                if auth_btn:
+                    if not login_id or not login_pwd:
+                        st.error("Please provide both username/email and password.")
                     else:
-                        with st.spinner("Authenticating..."):
-                            success, message, user_data = authenticate_user(username_input, password_input)
+                        with st.spinner("Verifying credentials..."):
+                            success, message, user_data = authenticate_user(login_id, login_pwd)
                             if success and user_data:
-                                st.success("Access Granted. Unlocking feature...")
+                                st.success("Authorization confirmed. Loading workspace...")
                                 login_user(user_data)
                             else:
                                 st.error(message)
 
-            st.markdown("<div style='height: 1px; background: #334155; margin: 1rem 0;'></div>", unsafe_allow_html=True)
-            st.markdown("<p style='color: #94a3b8; font-size: 0.78rem; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px; margin-bottom: 6px;'>Instant Access</p>", unsafe_allow_html=True)
-            
-            if st.button("Unlock with Pro Trader Demo", key=f"gate_demo_btn_{key_suffix}", use_container_width=True):
-                success, msg, user_data = authenticate_user("demo_user", "demo123")
-                if success and user_data:
-                    login_user(user_data)
-
         # ==========================================
-        # SIGN UP TAB
+        # REGISTER TAB
         # ==========================================
-        with gate_tab_signup:
-            st.markdown("<h4 style='margin-top: 0; color: #f8fafc;'>Register Free Account</h4>", unsafe_allow_html=True)
+        with tab_register:
+            st.markdown("<p style='color: #64748b; font-size: 0.82rem; margin: 0.5rem 0 1rem 0;'>Register a private account. Your dedicated user repository and workspace will be provisioned automatically.</p>", unsafe_allow_html=True)
             
-            with st.form(f"gate_signup_form_{key_suffix}"):
-                new_fullname = st.text_input("Full Name", placeholder="e.g. Alex Sharma", key=f"gate_r_fn_{key_suffix}")
-                new_username = st.text_input("Username", placeholder="e.g. asharma", key=f"gate_r_un_{key_suffix}")
-                new_email = st.text_input("Email Address", placeholder="e.g. alex@domain.com", key=f"gate_r_em_{key_suffix}")
-                new_password = st.text_input("Password (min 6 chars)", type="password", placeholder="••••••••", key=f"gate_r_pw_{key_suffix}")
-                new_confirm_pwd = st.text_input("Confirm Password", type="password", placeholder="••••••••", key=f"gate_r_cp_{key_suffix}")
+            with st.form(f"gate_reg_form_{key_suffix}"):
+                r_fullname = st.text_input("Full Name", placeholder="e.g. Alex Sharma", key=f"gate_r_fn_{key_suffix}")
+                r_username = st.text_input("Username", placeholder="e.g. asharma", key=f"gate_r_un_{key_suffix}")
+                r_email = st.text_input("Work or Personal Email", placeholder="e.g. alex@company.com", key=f"gate_r_em_{key_suffix}")
+                r_pwd = st.text_input("Password (min 6 characters)", type="password", placeholder="••••••••", key=f"gate_r_pw_{key_suffix}")
+                r_confirm = st.text_input("Confirm Password", type="password", placeholder="••••••••", key=f"gate_r_cp_{key_suffix}")
                 
-                signup_submitted = st.form_submit_button("Create Account & Unlock", use_container_width=True)
+                reg_btn = st.form_submit_button("Register & Initialize Workspace", use_container_width=True)
                 
-                if signup_submitted:
-                    if not new_username or not new_email or not new_password:
-                        st.error("Please fill in all required fields.")
-                    elif new_password != new_confirm_pwd:
-                        st.error("Passwords do not match.")
-                    elif len(new_password) < 6:
-                        st.error("Password must be at least 6 characters long.")
+                if reg_btn:
+                    if not r_username or not r_email or not r_pwd:
+                        st.error("Please complete all required registration fields.")
+                    elif r_pwd != r_confirm:
+                        st.error("Password confirmation does not match.")
+                    elif len(r_pwd) < 6:
+                        st.error("Password must be at least 6 characters in length.")
                     else:
-                        with st.spinner("Creating account..."):
+                        with st.spinner("Provisioning user environment..."):
                             reg_ok, reg_msg = register_user(
-                                username=new_username,
-                                email=new_email,
-                                password=new_password,
-                                full_name=new_fullname,
+                                username=r_username,
+                                email=r_email,
+                                password=r_pwd,
+                                full_name=r_fullname,
                                 tier="pro"
                             )
                             if reg_ok:
-                                auth_ok, auth_msg, user_data = authenticate_user(new_username, new_password)
+                                auth_ok, _, user_data = authenticate_user(r_username, r_pwd)
                                 if auth_ok and user_data:
+                                    st.success("Account provisioned. Entering workspace...")
                                     login_user(user_data)
                             else:
                                 st.error(reg_msg)
 
-        st.markdown('</div>', unsafe_allow_html=True)
+        st.markdown("</div>", unsafe_allow_html=True)
 
     return False

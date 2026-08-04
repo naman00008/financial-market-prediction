@@ -1626,11 +1626,16 @@ def main():
         # Authentication Session Management & Sidebar Widget
         try:
             from app.auth_ui import init_session_auth, render_sidebar_auth_widget, render_feature_gate
+            from src.tracker import track_activity
         except Exception:
             from auth_ui import init_session_auth, render_sidebar_auth_widget, render_feature_gate
+            from tracker import track_activity
         
         init_session_auth()
         render_sidebar_auth_widget()
+        
+        curr_user = st.session_state.get("user", {})
+        active_username = curr_user.get("username") if curr_user else "guest"
         
         # Configure page cache and session state
         if 'page_load_time' not in st.session_state:
@@ -1786,6 +1791,7 @@ def main():
             st.markdown(
                 "Real-time stock analysis with live prices, interactive charts, and technical indicators. Select indicators below to add them to the chart."
             )
+            track_activity("VIEW_ANALYSIS", username=active_username, details={"ticker": ticker, "time_range": time_range})
             render_unified_analysis_section(ticker, df, tickers)
 
         with tabs[1]:
@@ -1795,6 +1801,7 @@ def main():
                 description="Live financial news aggregation, VADER sentiment scoring, and company impact ratings require user authentication.",
                 key_suffix="news"
             ):
+                track_activity("VIEW_NEWS_SENTIMENT", username=active_username, details={"news_ticker": news_ticker})
                 render_news_sentiment(news_ticker, tickers)
 
         with tabs[2]:
@@ -1804,6 +1811,7 @@ def main():
                 description="Trained ML models (Random Forest, XGBoost, Ridge, Lasso) and forward price forecasts require user authentication.",
                 key_suffix="ml"
             ):
+                track_activity("VIEW_ML_PREDICTIONS", username=active_username, details={"ticker": ticker})
                 render_model_predictions(df, ticker)
 
         with tabs[3]:
@@ -1813,6 +1821,7 @@ def main():
                 description="Multi-ticker normalized performance comparisons, correlation matrices, and risk-return scatter plots require user authentication.",
                 key_suffix="compare"
             ):
+                track_activity("VIEW_STOCK_COMPARISON", username=active_username)
                 render_stock_comparison(tickers)
 
         with tabs[4]:
@@ -1822,6 +1831,7 @@ def main():
                 description="Custom portfolio weight allocation, Sharpe ratio optimization, and drawdown analytics require user authentication.",
                 key_suffix="portfolio"
             ):
+                track_activity("VIEW_PORTFOLIO", username=active_username)
                 render_portfolio_management(tickers)
 
     except Exception as e:
