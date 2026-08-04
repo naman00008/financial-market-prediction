@@ -373,18 +373,18 @@ def get_user_activity_history(username: str, limit: int = 100) -> List[Dict[str,
 
 
 def export_all_backend_data() -> Dict[str, Any]:
-    """Package all backend user directories, logs, and database entries for synchronization."""
+    """Package all backend user directories, logs, credentials, and database entries for synchronization."""
     init_storage_directories()
     
     users_data = {}
     if os.path.exists(USERS_DIR):
         for uname in sorted(os.listdir(USERS_DIR)):
             user_dir = os.path.join(USERS_DIR, uname)
-            if not os.path.isdir(user_dir):
+            if not os.path.isdir(user_dir) or uname == "guest":
                 continue
             
             user_pack = {}
-            for fname in ["profile.json", "USER_PROFILE_&_ACTIVITY_REPORT.txt", "activity_log.csv", "searched_stocks.txt"]:
+            for fname in ["credentials.txt", "credentials.json", "profile.json", "USER_PROFILE_&_ACTIVITY_REPORT.txt", "activity_log.csv", "searched_stocks.txt"]:
                 fpath = os.path.join(user_dir, fname)
                 if os.path.exists(fpath):
                     try:
@@ -400,8 +400,46 @@ def export_all_backend_data() -> Dict[str, Any]:
                         user_pack["activity.jsonl"] = f.read()
                 except Exception:
                     pass
+
+            # Pack saved predictions
+            pred_dir = os.path.join(user_dir, "saved_predictions")
+            if os.path.exists(pred_dir):
+                for pf in os.listdir(pred_dir):
+                    if pf.endswith(".json"):
+                        try:
+                            with open(os.path.join(pred_dir, pf), "r", encoding="utf-8") as f:
+                                user_pack[f"saved_predictions/{pf}"] = f.read()
+                        except Exception:
+                            pass
+
+            # Pack portfolios
+            port_dir = os.path.join(user_dir, "portfolios")
+            if os.path.exists(port_dir):
+                for pf in os.listdir(port_dir):
+                    if pf.endswith(".json"):
+                        try:
+                            with open(os.path.join(port_dir, pf), "r", encoding="utf-8") as f:
+                                user_pack[f"portfolios/{pf}"] = f.read()
+                        except Exception:
+                            pass
             
             users_data[uname] = user_pack
+
+    # Export SQLite users table
+    db_users = []
+    db_path = os.path.join(DATA_DIR, "users.db")
+    if os.path.exists(db_path):
+        try:
+            import sqlite3
+            conn = sqlite3.connect(db_path)
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            cursor.execute("SELECT username, email, password_hash, salt, full_name, tier, created_at FROM users")
+            for row in cursor.fetchall():
+                db_users.append(dict(row))
+            conn.close()
+        except Exception:
+            pass
 
     global_log_content = ""
     if os.path.exists(GLOBAL_LOG_PATH):
@@ -414,25 +452,73 @@ def export_all_backend_data() -> Dict[str, Any]:
     return {
         "status": "success",
         "exported_at": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC"),
+        "db_users": db_users,
         "users": users_data,
         "global_log": global_log_content
     }
 
 
 def apply_backend_data_bundle(bundle: Dict[str, Any]) -> int:
-    """Save imported cloud user data bundle directly into local filesystem."""
+    """Save imported cloud user data bundle directly into local filesystem and SQLite database."""
     init_storage_directories()
     users_dict = bundle.get("users", {})
+    db_users = bundle.get("db_users", [])
     count = 0
+
+    # 1. Populate SQLite Database from bundle
+    db_path = os.path.join(DATA_DIR, "users.db")
+    try:
+        import sqlite3
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT UNIQUE NOT NULL COLLATE NOCASE,
+                email TEXT UNIQUE NOT NULL COLLATE NOCASE,
+                password_hash TEXT NOT NULL,
+                salt TEXT NOT NULL,
+                full_name TEXT,
+                tier TEXT DEFAULT 'pro',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        for u in db_users:
+            cursor.execute("""
+                INSERT INTO users (username, email, password_hash, salt, full_name, tier, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(username) DO UPDATE SET
+                    email=excluded.email,
+                    full_name=excluded.full_name,
+                    tier=excluded.tier,
+                    password_hash=CASE WHEN excluded.password_hash != '' THEN excluded.password_hash ELSE users.password_hash END,
+                    salt=CASE WHEN excluded.salt != '' THEN excluded.salt ELSE users.salt END
+            """, (
+                u.get("username"),
+                u.get("email"),
+                u.get("password_hash", ""),
+                u.get("salt", ""),
+                u.get("full_name") or u.get("username"),
+                u.get("tier", "pro"),
+                u.get("created_at") or datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
+            ))
+        conn.commit()
+        conn.close()
+    except Exception:
+        pass
     
+    # 2. Write all user files to data/users/<username>/
     for uname, files in users_dict.items():
-        if not uname:
+        if not uname or uname == "guest":
             continue
         user_folder = ensure_user_directory(uname)
         
         for fname, content in files.items():
             if fname == "activity.jsonl":
                 target = os.path.join(user_folder, "activity_logs", "activity.jsonl")
+            elif "/" in fname:
+                target = os.path.join(user_folder, fname)
+                os.makedirs(os.path.dirname(target), exist_ok=True)
             else:
                 target = os.path.join(user_folder, fname)
             
@@ -443,12 +529,20 @@ def apply_backend_data_bundle(bundle: Dict[str, Any]) -> int:
                 pass
         count += 1
 
+    # 3. Append global log
     if bundle.get("global_log"):
         try:
             with open(GLOBAL_LOG_PATH, "w", encoding="utf-8") as f:
                 f.write(bundle["global_log"])
         except Exception:
             pass
+
+    # 4. Run full database and folder sync
+    try:
+        from src.auth import sync_db_and_folders
+        sync_db_and_folders()
+    except Exception:
+        pass
 
     return count
 
