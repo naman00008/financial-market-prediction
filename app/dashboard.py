@@ -1784,7 +1784,7 @@ def main():
             st.error(f"Error loading live data for {ticker}: {e}")
             return
 
-        tabs = st.tabs(["Analysis", "News & Sentiment", "Model Predictions", "Compare Stocks", "Portfolio", "User Activity & Backend"])
+        tabs = st.tabs(["Analysis", "News & Sentiment", "Model Predictions", "Compare Stocks", "Portfolio"])
 
         with tabs[0]:
             st.header(f"{ticker} Live Analysis")
@@ -1833,20 +1833,6 @@ def main():
             ):
                 track_activity("VIEW_PORTFOLIO", username=active_username)
                 render_portfolio_management(tickers)
-
-        with tabs[5]:
-            st.header("User Activity & Backend Audit Monitor")
-            if render_feature_gate(
-                feature_name="Backend User Activity & Directory Monitor",
-                description="Access to provisioned user directories, live audit trails, and platform telemetry requires authorized login.",
-                key_suffix="backend_audit"
-            ):
-                try:
-                    from app.admin_panel import render_admin_dashboard_section
-                except Exception:
-                    from admin_panel import render_admin_dashboard_section
-                track_activity("VIEW_BACKEND_AUDIT_PORTAL", username=active_username)
-                render_admin_dashboard_section()
 
     except Exception as e:
         st.error(f"An unexpected error occurred: {e}")
