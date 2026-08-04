@@ -1,7 +1,7 @@
 """
 Authentication UI and Session Management Component
 Provides modular feature-level gatekeeping, sidebar profile widgets,
-and modal login/signup interfaces for protected financial terminal features.
+and clean single-point authentication for protected financial terminal features.
 """
 
 import streamlit as st
@@ -39,9 +39,9 @@ def is_authenticated() -> bool:
 
 def render_sidebar_auth_widget() -> None:
     """
-    Render authentication controls in the sidebar:
-    - If authenticated: user avatar, name, tier badge, and Sign Out button.
-    - If unauthenticated: compact Sign In / Register expander with one-click demo.
+    Render authentication status in the sidebar:
+    - If authenticated: Displays user profile card (Avatar, Username, Tier, Sign Out).
+    - If guest: Keeps sidebar clean and uncluttered (all login forms are centralized in the main content).
     """
     init_session_auth()
     user = st.session_state.get("user")
@@ -80,71 +80,20 @@ def render_sidebar_auth_widget() -> None:
 
         if st.sidebar.button("Sign Out", use_container_width=True, help="End active session"):
             logout_user()
-    else:
-        st.sidebar.markdown("""
-            <div style="background: rgba(30, 41, 59, 0.5); border: 1px solid #334155; border-radius: 8px; padding: 12px; margin-bottom: 12px;">
-                <div style="font-size: 0.8rem; color: #94a3b8; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px; margin-bottom: 4px;">Session Status</div>
-                <div style="color: #f1f5f9; font-size: 0.88rem; font-weight: 500;">Guest Visitor</div>
-                <div style="font-size: 0.78rem; color: #64748b; margin-top: 2px;">Sign in below to unlock advanced analytics.</div>
-            </div>
-        """, unsafe_allow_html=True)
-
-        with st.sidebar.expander("Sign In / Register", expanded=False):
-            side_tab_login, side_tab_reg = st.tabs(["Sign In", "Register"])
-            
-            with side_tab_login:
-                with st.form("sidebar_login_form"):
-                    s_user = st.text_input("Username / Email", key="sb_login_user")
-                    s_pass = st.text_input("Password", type="password", key="sb_login_pass")
-                    s_btn = st.form_submit_button("Sign In", use_container_width=True)
-                    if s_btn:
-                        if not s_user or not s_pass:
-                            st.error("Enter username and password.")
-                        else:
-                            ok, msg, udata = authenticate_user(s_user, s_pass)
-                            if ok and udata:
-                                login_user(udata)
-                            else:
-                                st.error(msg)
-                
-                if st.button("Quick Demo Login", key="sb_demo_btn", use_container_width=True):
-                    ok, msg, udata = authenticate_user("demo_user", "demo123")
-                    if ok and udata:
-                        login_user(udata)
-
-            with side_tab_reg:
-                with st.form("sidebar_reg_form"):
-                    r_name = st.text_input("Full Name", key="sb_reg_name")
-                    r_user = st.text_input("Username", key="sb_reg_user")
-                    r_email = st.text_input("Email", key="sb_reg_email")
-                    r_pass = st.text_input("Password", type="password", key="sb_reg_pass")
-                    r_btn = st.form_submit_button("Register", use_container_width=True)
-                    if r_btn:
-                        if not r_user or not r_email or not r_pass:
-                            st.error("Please fill in required fields.")
-                        else:
-                            reg_ok, reg_msg = register_user(r_user, r_email, r_pass, r_name, "pro")
-                            if reg_ok:
-                                _, _, udata = authenticate_user(r_user, r_pass)
-                                if udata:
-                                    login_user(udata)
-                            else:
-                                st.error(reg_msg)
 
 
 def render_feature_gate(feature_name: str, description: str, key_suffix: str = "default") -> bool:
     """
-    Modular Feature Gatekeeper:
-    - If user is authenticated, returns True and allows rendering the feature content.
-    - If user is not authenticated, displays an institutional locked-feature portal
-      with integrated login/signup and demo buttons, and returns False.
+    Single Centralized Feature Gatekeeper:
+    - If user is authenticated, returns True and unlocks feature immediately.
+    - If unauthenticated, renders a single, clean central login/registration portal.
     """
     init_session_auth()
     
     if is_authenticated():
         return True
 
-    # Render embedded professional gatekeeper
+    # Render clean, single central gatekeeper card
     st.markdown(f"""
         <div class="auth-hero-banner" style="margin-top: 1rem; padding: 2rem 1.5rem 1.5rem 1.5rem;">
             <div class="auth-badge">AUTHENTICATION REQUIRED</div>
@@ -158,14 +107,14 @@ def render_feature_gate(feature_name: str, description: str, key_suffix: str = "
         </div>
     """, unsafe_allow_html=True)
 
-    gate_col1, gate_col2, gate_col3 = st.columns([1, 2.2, 1])
+    gate_col1, gate_col2, gate_col3 = st.columns([1, 2.4, 1])
 
     with gate_col2:
         st.markdown('<div class="auth-card-container">', unsafe_allow_html=True)
         gate_tab_login, gate_tab_signup = st.tabs(["Sign In", "Create Account"])
 
         # ==========================================
-        # GATE LOGIN TAB
+        # LOGIN TAB
         # ==========================================
         with gate_tab_login:
             st.markdown("<h4 style='margin-top: 0; color: #f8fafc;'>Sign In to Unlock</h4>", unsafe_allow_html=True)
@@ -173,7 +122,7 @@ def render_feature_gate(feature_name: str, description: str, key_suffix: str = "
             with st.form(f"gate_login_form_{key_suffix}"):
                 username_input = st.text_input("Username or Email", placeholder="demo_user or email@domain.com", key=f"gate_u_{key_suffix}")
                 password_input = st.text_input("Password", type="password", placeholder="••••••••", key=f"gate_p_{key_suffix}")
-                submitted = st.form_submit_button("Authenticate & Unlock", use_container_width=True)
+                submitted = st.form_submit_button("Sign In & Unlock Feature", use_container_width=True)
                 
                 if submitted:
                     if not username_input or not password_input:
@@ -182,7 +131,7 @@ def render_feature_gate(feature_name: str, description: str, key_suffix: str = "
                         with st.spinner("Authenticating..."):
                             success, message, user_data = authenticate_user(username_input, password_input)
                             if success and user_data:
-                                st.success("Access Granted. Loading terminal...")
+                                st.success("Access Granted. Unlocking feature...")
                                 login_user(user_data)
                             else:
                                 st.error(message)
@@ -196,7 +145,7 @@ def render_feature_gate(feature_name: str, description: str, key_suffix: str = "
                     login_user(user_data)
 
         # ==========================================
-        # GATE SIGN UP TAB
+        # SIGN UP TAB
         # ==========================================
         with gate_tab_signup:
             st.markdown("<h4 style='margin-top: 0; color: #f8fafc;'>Register Free Account</h4>", unsafe_allow_html=True)
