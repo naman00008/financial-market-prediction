@@ -53,7 +53,7 @@ def verify_password(password: str, stored_hash: str, salt: str) -> bool:
 
 
 def init_auth_db() -> None:
-    """Initialize database tables."""
+    """Initialize database tables and sync all existing user directories."""
     with get_db_connection() as conn:
         cursor = conn.cursor()
         cursor.execute("""
@@ -69,6 +69,25 @@ def init_auth_db() -> None:
             )
         """)
         conn.commit()
+
+        # Automatically ensure all registered users have provisioned directories and reports
+        try:
+            from src.tracker import ensure_user_directory, update_user_human_readable_report
+            cursor.execute("SELECT id, username, email, full_name, tier, created_at FROM users")
+            existing_users = cursor.fetchall()
+            for u in existing_users:
+                u_dict = {
+                    "id": u["id"],
+                    "username": u["username"],
+                    "email": u["email"],
+                    "full_name": u["full_name"],
+                    "tier": u["tier"],
+                    "created_at": u["created_at"]
+                }
+                ensure_user_directory(u["username"], u_dict)
+                update_user_human_readable_report(u["username"])
+        except Exception:
+            pass
 
 
 def register_user(
