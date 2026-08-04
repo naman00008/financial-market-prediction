@@ -4,7 +4,7 @@ services:
     env: python
     plan: free
     buildCommand: pip install --no-cache-dir -r requirements.txt
-    startCommand: streamlit run app/dashboard.py --server.port $PORT --server.address 0.0.0.0
+    startCommand: python server.py
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.0
