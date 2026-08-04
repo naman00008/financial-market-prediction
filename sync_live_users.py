@@ -14,6 +14,10 @@ import json
 import os
 import sys
 import time
+import warnings
+
+warnings.filterwarnings("ignore")
+
 from src.cloud_stream import listen_live_stream
 from src.tracker import (
     ensure_user_directory,

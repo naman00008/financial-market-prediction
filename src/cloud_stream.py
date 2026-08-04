@@ -8,9 +8,12 @@ import json
 import os
 import threading
 import time
-import urllib.request
-import urllib.error
 from typing import Any, Callable, Dict, Optional
+import requests
+import warnings
+
+# Suppress urllib3 LibreSSL warning for clean terminal
+warnings.filterwarnings("ignore", category=UserWarning)
 
 STREAM_TOPIC = "marketpulse_live_audit_stream_naman_v3"
 MIRROR_TOPIC = "marketpulse_naman_live_stream"
@@ -23,25 +26,16 @@ POLL_JSON_URL = f"https://ntfy.sh/{STREAM_TOPIC}/json?poll=1&since=24h"
 
 
 def _send_payload_async(payload: Dict[str, Any]) -> None:
-    try:
-        data_bytes = json.dumps(payload).encode("utf-8")
-        for url in PUBLISH_URLS:
-            try:
-                req = urllib.request.Request(
-                    url,
-                    data=data_bytes,
-                    headers={
-                        "Title": f"User Action: {payload.get('username', 'guest')}",
-                        "User-Agent": "MarketPulseAuditRelay/3.0"
-                    },
-                    method="POST"
-                )
-                with urllib.request.urlopen(req, timeout=6):
-                    pass
-            except Exception:
-                pass
-    except Exception:
-        pass
+    for url in PUBLISH_URLS:
+        try:
+            requests.post(
+                url,
+                json=payload,
+                headers={"Title": f"User Action: {payload.get('username', 'guest')}"},
+                timeout=5
+            )
+        except Exception:
+            pass
 
 
 def publish_cloud_event(
@@ -63,44 +57,44 @@ def publish_cloud_event(
     t.start()
 
 
+def _parse_and_dispatch(line_str: str, on_event: Callable[[Dict[str, Any]], None]) -> None:
+    try:
+        obj = json.loads(line_str)
+        if obj.get("event") == "message" and "message" in obj:
+            msg_raw = obj["message"]
+            if isinstance(msg_raw, str):
+                inner_msg = json.loads(msg_raw)
+            else:
+                inner_msg = msg_raw
+            on_event(inner_msg)
+    except Exception:
+        pass
+
+
 def listen_live_stream(on_event: Callable[[Dict[str, Any]], None]) -> None:
     """
-    Connect to real-time live event stream and invoke callback for each action.
-    Automatically catches up with 24h history and maintains persistent connection.
+    Connect to real-time live event stream using requests.iter_lines().
+    Sub-second latency with automatic 24-hour catch-up on launch.
     """
     # 1. Catch-up poll from past 24 hours
     try:
-        req = urllib.request.Request(POLL_JSON_URL, headers={"User-Agent": "MarketPulseClient/3.0"})
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            for raw_line in resp:
-                line = raw_line.decode("utf-8").strip()
-                if not line:
-                    continue
-                try:
-                    obj = json.loads(line)
-                    if obj.get("event") == "message" and "message" in obj:
-                        inner_msg = json.loads(obj["message"])
-                        on_event(inner_msg)
-                except Exception:
-                    pass
+        r = requests.get(POLL_JSON_URL, timeout=10)
+        if r.status_code == 200:
+            for line in r.text.splitlines():
+                line = line.strip()
+                if line:
+                    _parse_and_dispatch(line, on_event)
     except Exception:
         pass
 
     # 2. Continuous real-time stream
     while True:
         try:
-            req = urllib.request.Request(STREAM_JSON_URL, headers={"User-Agent": "MarketPulseClient/3.0"})
-            with urllib.request.urlopen(req, timeout=90) as resp:
-                for raw_line in resp:
-                    line = raw_line.decode("utf-8").strip()
-                    if not line:
-                        continue
-                    try:
-                        obj = json.loads(line)
-                        if obj.get("event") == "message" and "message" in obj:
-                            inner_msg = json.loads(obj["message"])
-                            on_event(inner_msg)
-                    except Exception:
-                        pass
+            with requests.get(STREAM_JSON_URL, stream=True, timeout=120) as resp:
+                for raw_line in resp.iter_lines():
+                    if raw_line:
+                        decoded = raw_line.decode("utf-8").strip()
+                        if decoded:
+                            _parse_and_dispatch(decoded, on_event)
         except Exception:
-            time.sleep(2)
+            time.sleep(1)
