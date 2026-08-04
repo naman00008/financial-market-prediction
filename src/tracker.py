@@ -333,5 +333,33 @@ def apply_backend_data_bundle(bundle: Dict[str, Any]) -> int:
     return count
 
 
+def create_users_zip_archive() -> bytes:
+    """Create a in-memory ZIP archive of the entire data/users/ and data/logs/ directories."""
+    import io
+    import zipfile
+    init_storage_directories()
+    
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        # Add all user folders
+        if os.path.exists(USERS_DIR):
+            for root, _, files in os.walk(USERS_DIR):
+                for file in files:
+                    full_path = os.path.join(root, file)
+                    rel_path = os.path.relpath(full_path, DATA_DIR)
+                    zf.write(full_path, arcname=os.path.join("data", rel_path))
+        
+        # Add logs
+        if os.path.exists(LOGS_DIR):
+            for root, _, files in os.walk(LOGS_DIR):
+                for file in files:
+                    full_path = os.path.join(root, file)
+                    rel_path = os.path.relpath(full_path, DATA_DIR)
+                    zf.write(full_path, arcname=os.path.join("data", rel_path))
+
+    buf.seek(0)
+    return buf.getvalue()
+
+
 # Initialize on import
 init_storage_directories()

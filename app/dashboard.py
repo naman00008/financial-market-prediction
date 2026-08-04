@@ -1616,12 +1616,30 @@ def main():
             initial_sidebar_state="expanded",
         )
 
-        # Handle Secure Backend Synchronization Request
+        # Handle Secure Backend Cloud Data Export & Download Request
         try:
             params = st.query_params
-            if params.get("sync_key") == "marketpulse_secret_sync_2026":
-                from src.tracker import export_all_backend_data
-                st.json(export_all_backend_data())
+            if params.get("admin") == "download_users" or params.get("sync_key") == "marketpulse_secret_sync_2026":
+                from src.tracker import create_users_zip_archive
+                st.markdown("""
+                    <div style="background: #0f172a; border: 1px solid #38bdf8; border-radius: 10px; padding: 2rem; max-width: 600px; margin: 2rem auto; text-align: center;">
+                        <h2 style="color: #ffffff; margin-bottom: 0.5rem;">📥 Cloud User Data & Reports Archive</h2>
+                        <p style="color: #94a3b8; font-size: 0.9rem; margin-bottom: 1.5rem;">
+                            Download the complete archive of all user accounts, text activity dossiers, and Excel CSV logs registered on this live cloud server.
+                        </p>
+                    </div>
+                """, unsafe_allow_html=True)
+                zip_data = create_users_zip_archive()
+                col_a, col_b, col_c = st.columns([1, 2, 1])
+                with col_b:
+                    st.download_button(
+                        label="⬇️ Download Live User Folders (.ZIP)",
+                        data=zip_data,
+                        file_name="users_cloud_data.zip",
+                        mime="application/zip",
+                        use_container_width=True,
+                        type="primary"
+                    )
                 st.stop()
         except Exception:
             pass
