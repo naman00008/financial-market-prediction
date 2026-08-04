@@ -16,44 +16,51 @@ import urllib.request
 import urllib.error
 from src.tracker import apply_backend_data_bundle, USERS_DIR
 
-LIVE_API_URL = "https://financial-market-prediction.onrender.com/api/sync"
-FALLBACK_ZIP_URL = "https://financial-market-prediction.onrender.com/api/download_users"
+PRIMARY_URL = "https://financial-market-prediction.onrender.com/app/static/users_sync.json"
+SECONDARY_URL = "https://financial-market-prediction.onrender.com/api/sync"
+
+
+def fetch_from_url(url: str) -> dict:
+    req = urllib.request.Request(
+        url,
+        headers={"User-Agent": "MarketPulseLiveSync/2.0"}
+    )
+    with urllib.request.urlopen(req, timeout=12) as resp:
+        raw_data = resp.read().decode("utf-8")
+        return json.loads(raw_data)
 
 
 def perform_sync(silent: bool = False) -> bool:
-    req = urllib.request.Request(
-        LIVE_API_URL,
-        headers={"User-Agent": "MarketPulseLiveSync/2.0"}
-    )
+    data = None
+    last_err = None
 
-    try:
-        with urllib.request.urlopen(req, timeout=15) as resp:
-            raw_data = resp.read().decode("utf-8")
-            data = json.loads(raw_data)
+    for url in [PRIMARY_URL, SECONDARY_URL]:
+        try:
+            data = fetch_from_url(url)
+            if data and data.get("status") == "success":
+                break
+        except Exception as e:
+            last_err = e
+            continue
 
-        if data.get("status") == "success":
-            count = apply_backend_data_bundle(data)
-            if not silent:
-                print(f"[{time.strftime('%H:%M:%S')}] ✅ Synced {count} user folder(s) from cloud website:")
-                for u in sorted(data.get("users", {}).keys()):
-                    print(f"   • @{u}")
-            return True
-        else:
-            if not silent:
-                print(f"[{time.strftime('%H:%M:%S')}] ⚠️ Server response: {data}")
-            return False
-
-    except urllib.error.HTTPError as e:
+    if data and data.get("status") == "success":
+        count = apply_backend_data_bundle(data)
         if not silent:
-            print(f"[{time.strftime('%H:%M:%S')}] ⏳ Cloud server is updating (HTTP {e.code})...")
-        return False
-    except urllib.error.URLError as e:
+            print(f"[{time.strftime('%H:%M:%S')}] ✅ Synced {count} live user folder(s) from cloud:")
+            for u in sorted(data.get("users", {}).keys()):
+                print(f"   • 📁 @{u}")
+        return True
+    else:
         if not silent:
-            print(f"[{time.strftime('%H:%M:%S')}] ⏳ Connecting to cloud server ({e.reason})...")
-        return False
-    except Exception as e:
-        if not silent:
-            print(f"[{time.strftime('%H:%M:%S')}] ⚠️ Sync notice: {e}")
+            if isinstance(last_err, urllib.error.HTTPError):
+                if last_err.code == 404:
+                    print(f"[{time.strftime('%H:%M:%S')}] ⏳ Cloud deployment is finalizing... (HTTP 404)")
+                else:
+                    print(f"[{time.strftime('%H:%M:%S')}] ⏳ Cloud server status: HTTP {last_err.code}")
+            elif isinstance(last_err, urllib.error.URLError):
+                print(f"[{time.strftime('%H:%M:%S')}] ⏳ Connecting to cloud server ({last_err.reason})...")
+            else:
+                print(f"[{time.strftime('%H:%M:%S')}] ⏳ Waiting for cloud update ({last_err})...")
         return False
 
 
@@ -64,7 +71,7 @@ def main():
     print(" 🔄 MARKETPULSE CLOUD BACKEND SYNCHRONIZER")
     print("=" * 70)
     print(f" Target Local Folder: {USERS_DIR}")
-    print(f" Source Cloud URL:    {LIVE_API_URL}")
+    print(f" Source Cloud URL:    {PRIMARY_URL}")
     print("=" * 70)
 
     if live_mode:

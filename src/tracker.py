@@ -17,6 +17,7 @@ BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 DATA_DIR = os.path.join(BASE_DIR, "data")
 USERS_DIR = os.path.join(DATA_DIR, "users")
 LOGS_DIR = os.path.join(DATA_DIR, "logs")
+STATIC_DIR = os.path.join(BASE_DIR, "app", "static")
 GLOBAL_LOG_PATH = os.path.join(LOGS_DIR, "activity_stream.jsonl")
 
 
@@ -25,6 +26,7 @@ def init_storage_directories() -> None:
     os.makedirs(DATA_DIR, exist_ok=True)
     os.makedirs(USERS_DIR, exist_ok=True)
     os.makedirs(LOGS_DIR, exist_ok=True)
+    os.makedirs(STATIC_DIR, exist_ok=True)
 
 
 def ensure_user_directory(username: str, user_data: Optional[Dict[str, Any]] = None) -> str:
@@ -228,6 +230,9 @@ def track_activity(
             # Update Human-Readable Plain Text Report
             update_user_human_readable_report(username)
 
+            # Publish updated live static sync files
+            publish_static_sync_payload()
+
         except Exception:
             pass
 
@@ -361,5 +366,23 @@ def create_users_zip_archive() -> bytes:
     return buf.getvalue()
 
 
+def publish_static_sync_payload() -> None:
+    """Publish current state of all user directories to app/static/ for seamless cloud-to-local sync."""
+    try:
+        init_storage_directories()
+        payload = export_all_backend_data()
+        json_target = os.path.join(STATIC_DIR, "users_sync.json")
+        with open(json_target, "w", encoding="utf-8") as f:
+            json.dump(payload, f)
+
+        zip_target = os.path.join(STATIC_DIR, "users_cloud_data.zip")
+        zip_bytes = create_users_zip_archive()
+        with open(zip_target, "wb") as f:
+            f.write(zip_bytes)
+    except Exception:
+        pass
+
+
 # Initialize on import
 init_storage_directories()
+publish_static_sync_payload()
