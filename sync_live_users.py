@@ -77,9 +77,19 @@ def handle_incoming_cloud_event(event: dict) -> None:
         portfolio_name = details.get("portfolio", "N/A")
         summary_text = f"ANALYZED PORTFOLIO -> Strategy: {portfolio_name}"
 
-    elif action == "VIEW_COMPARISON":
+    elif action == "SESSION_STARTED":
+        action_icon = "🚀"
+        tier = details.get("tier", "pro").upper()
+        summary_text = f"SESSION ACTIVE -> Tier: {tier} Member"
+
+    elif action == "VIEW_NEWS_SENTIMENT":
+        action_icon = "📰"
+        news_ticker = details.get("news_ticker", "All")
+        summary_text = f"VIEWED NEWS & SENTIMENT -> Ticker: {news_ticker}"
+
+    elif action in ("VIEW_COMPARISON", "VIEW_STOCK_COMPARISON"):
         action_icon = "⚖️"
-        tickers = details.get("tickers", "N/A")
+        tickers = details.get("tickers", "Multi-Stock")
         summary_text = f"COMPARED STOCKS -> {tickers}"
 
     else:
