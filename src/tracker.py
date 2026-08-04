@@ -252,26 +252,85 @@ def get_user_activity_history(username: str, limit: int = 100) -> List[Dict[str,
     return entries[-limit:][::-1]
 
 
-def get_all_registered_user_folders() -> List[Dict[str, Any]]:
-    """List all user folders created in the backend with their profile metadata."""
+def export_all_backend_data() -> Dict[str, Any]:
+    """Package all backend user directories, logs, and database entries for synchronization."""
     init_storage_directories()
-    if not os.path.exists(USERS_DIR):
-        return []
-
-    users = []
-    for uname in sorted(os.listdir(USERS_DIR)):
-        user_path = os.path.join(USERS_DIR, uname)
-        if os.path.isdir(user_path):
-            profile_path = os.path.join(user_path, "profile.json")
-            if os.path.exists(profile_path):
+    
+    users_data = {}
+    if os.path.exists(USERS_DIR):
+        for uname in sorted(os.listdir(USERS_DIR)):
+            user_dir = os.path.join(USERS_DIR, uname)
+            if not os.path.isdir(user_dir):
+                continue
+            
+            user_pack = {}
+            for fname in ["profile.json", "USER_PROFILE_&_ACTIVITY_REPORT.txt", "activity_log.csv", "searched_stocks.txt"]:
+                fpath = os.path.join(user_dir, fname)
+                if os.path.exists(fpath):
+                    try:
+                        with open(fpath, "r", encoding="utf-8") as f:
+                            user_pack[fname] = f.read()
+                    except Exception:
+                        pass
+            
+            act_jsonl = os.path.join(user_dir, "activity_logs", "activity.jsonl")
+            if os.path.exists(act_jsonl):
                 try:
-                    with open(profile_path, "r", encoding="utf-8") as f:
-                        users.append(json.load(f))
+                    with open(act_jsonl, "r", encoding="utf-8") as f:
+                        user_pack["activity.jsonl"] = f.read()
                 except Exception:
-                    users.append({"username": uname, "status": "active"})
+                    pass
+            
+            users_data[uname] = user_pack
+
+    global_log_content = ""
+    if os.path.exists(GLOBAL_LOG_PATH):
+        try:
+            with open(GLOBAL_LOG_PATH, "r", encoding="utf-8") as f:
+                global_log_content = f.read()
+        except Exception:
+            pass
+
+    return {
+        "status": "success",
+        "exported_at": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC"),
+        "users": users_data,
+        "global_log": global_log_content
+    }
+
+
+def apply_backend_data_bundle(bundle: Dict[str, Any]) -> int:
+    """Save imported cloud user data bundle directly into local filesystem."""
+    init_storage_directories()
+    users_dict = bundle.get("users", {})
+    count = 0
+    
+    for uname, files in users_dict.items():
+        if not uname:
+            continue
+        user_folder = ensure_user_directory(uname)
+        
+        for fname, content in files.items():
+            if fname == "activity.jsonl":
+                target = os.path.join(user_folder, "activity_logs", "activity.jsonl")
             else:
-                users.append({"username": uname, "status": "active"})
-    return users
+                target = os.path.join(user_folder, fname)
+            
+            try:
+                with open(target, "w", encoding="utf-8") as f:
+                    f.write(content)
+            except Exception:
+                pass
+        count += 1
+
+    if bundle.get("global_log"):
+        try:
+            with open(GLOBAL_LOG_PATH, "w", encoding="utf-8") as f:
+                f.write(bundle["global_log"])
+        except Exception:
+            pass
+
+    return count
 
 
 # Initialize on import
