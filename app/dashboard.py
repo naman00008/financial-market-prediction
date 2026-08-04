@@ -867,6 +867,30 @@ def render_model_predictions(df: pd.DataFrame, ticker: str):
                 st.subheader("Model Performance Metrics")
                 st.dataframe(metrics_df.style.highlight_max(axis=0), width='stretch')
 
+                # Record live telemetry for model training
+                try:
+                    curr_user = st.session_state.get("user", {})
+                    uname = curr_user.get("username") if curr_user else "guest"
+                    best_model_name = metrics_df['rmse'].idxmin()
+                    best_rmse = float(metrics_df.loc[best_model_name, 'rmse'])
+                    best_acc = float(metrics_df.loc[best_model_name, 'directional_accuracy'])
+                    try:
+                        from src.tracker import track_activity
+                    except Exception:
+                        from tracker import track_activity
+                    track_activity(
+                        "TRAIN_ML_MODELS",
+                        username=uname,
+                        details={
+                            "ticker": ticker,
+                            "best_model": best_model_name,
+                            "rmse": round(best_rmse, 4),
+                            "directional_accuracy": f"{round(best_acc * 100, 1)}%"
+                        }
+                    )
+                except Exception:
+                    pass
+
                 # Plot actual vs predicted for best model (lowest RMSE)
                 best_model_name = metrics_df['rmse'].idxmin()
                 best_key = best_model_name.lower().replace(" ", "_")
@@ -1812,6 +1836,19 @@ def main():
             st.error(f"Error loading live data for {ticker}: {e}")
             return
 
+        # Track stock viewing when ticker or period changes
+        if st.session_state.get("last_tracked_ticker") != ticker or st.session_state.get("last_tracked_period") != period:
+            st.session_state["last_tracked_ticker"] = ticker
+            st.session_state["last_tracked_period"] = period
+            try:
+                try:
+                    from src.tracker import track_activity
+                except Exception:
+                    from tracker import track_activity
+                track_activity("VIEW_STOCK_ANALYSIS", username=active_username, details={"ticker": ticker, "time_range": period})
+            except Exception:
+                pass
+
         tabs = st.tabs(["Analysis", "News & Sentiment", "Model Predictions", "Compare Stocks", "Portfolio"])
 
         with tabs[0]:
@@ -1819,7 +1856,6 @@ def main():
             st.markdown(
                 "Real-time stock analysis with live prices, interactive charts, and technical indicators. Select indicators below to add them to the chart."
             )
-            track_activity("VIEW_ANALYSIS", username=active_username, details={"ticker": ticker, "time_range": time_range})
             render_unified_analysis_section(ticker, df, tickers)
 
         with tabs[1]:
@@ -1829,7 +1865,6 @@ def main():
                 description="Live financial news aggregation, VADER sentiment scoring, and company impact ratings require user authentication.",
                 key_suffix="news"
             ):
-                track_activity("VIEW_NEWS_SENTIMENT", username=active_username, details={"news_ticker": news_ticker})
                 render_news_sentiment(news_ticker, tickers)
 
         with tabs[2]:
@@ -1839,7 +1874,6 @@ def main():
                 description="Trained ML models (Random Forest, XGBoost, Ridge, Lasso) and forward price forecasts require user authentication.",
                 key_suffix="ml"
             ):
-                track_activity("VIEW_ML_PREDICTIONS", username=active_username, details={"ticker": ticker})
                 render_model_predictions(df, ticker)
 
         with tabs[3]:
@@ -1849,7 +1883,6 @@ def main():
                 description="Multi-ticker normalized performance comparisons, correlation matrices, and risk-return scatter plots require user authentication.",
                 key_suffix="compare"
             ):
-                track_activity("VIEW_STOCK_COMPARISON", username=active_username)
                 render_stock_comparison(tickers)
 
         with tabs[4]:
@@ -1859,7 +1892,6 @@ def main():
                 description="Custom portfolio weight allocation, Sharpe ratio optimization, and drawdown analytics require user authentication.",
                 key_suffix="portfolio"
             ):
-                track_activity("VIEW_PORTFOLIO", username=active_username)
                 render_portfolio_management(tickers)
 
     except Exception as e:

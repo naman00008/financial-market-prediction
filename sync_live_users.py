@@ -1,13 +1,8 @@
 """
-Real-Time Live User Audit & Directory Synchronizer
-Connects to the MarketPulse Live Cloud Stream.
-Whenever any user from any computer registers, signs in, or moves on the website:
-1. Displays the live activity trail in this terminal in real-time.
-2. Automatically creates and updates their folder in `data/users/<username>/` with:
-   - USER_PROFILE_&_ACTIVITY_REPORT.txt (Dossier)
-   - activity_log.csv (Excel Spreadsheet)
-   - searched_stocks.txt (Stocks viewed)
-   - profile.json (Metadata)
+MarketPulse Institutional Live User Audit & Synchronization Engine
+Connects to the cloud telemetry stream.
+Captures real-time transactions, logins, model training runs, and updates
+per-user audit records in data/users/<username>/
 """
 
 import json
@@ -41,90 +36,93 @@ def handle_incoming_cloud_event(event: dict) -> None:
     details = event.get("details", {})
     user_prof = event.get("user_profile", {})
 
-    # Ensure user folder exists on Mac
-    ensure_user_directory(username, user_prof if user_prof else None)
+    if username and username != "guest":
+        ensure_user_directory(username, user_prof if user_prof else None)
 
-    # Format human-readable terminal line
-    action_icon = "🔵"
+    category_tag = "[AUDIT]"
     summary_text = ""
 
     if action == "USER_REGISTRATION":
-        action_icon = "🟢"
+        category_tag = "[REGISTER]"
         full_name = details.get("full_name") or user_prof.get("full_name") or username
         email = details.get("email") or user_prof.get("email") or "N/A"
         tier = details.get("tier") or user_prof.get("tier") or "PRO"
-        summary_text = f"NEW ACCOUNT CREATED -> Name: {full_name} | Email: {email} | Tier: {tier.upper()}"
+        summary_text = f"NEW ACCOUNT CREATED | Name: {full_name} | Email: {email} | Tier: {tier.upper()}"
 
     elif action == "USER_LOGIN":
-        action_icon = "🔐"
+        category_tag = "[AUTH]"
         email = details.get("email") or user_prof.get("email") or "N/A"
-        summary_text = f"USER LOGGED IN -> Email: {email}"
+        tier = details.get("tier") or user_prof.get("tier") or "PRO"
+        summary_text = f"USER AUTHENTICATED | Email: {email} | Tier: {tier.upper()}"
 
     elif action == "USER_LOGOUT":
-        action_icon = "🚪"
-        summary_text = f"USER LOGGED OUT -> Session closed. Dossier & Excel logs finalized in data/users/{username}/"
+        category_tag = "[LOGOUT]"
+        summary_text = f"SESSION CLOSED | Dossier finalized in data/users/{username}/"
 
-    elif action == "VIEW_ANALYSIS":
-        action_icon = "📈"
+    elif action in ("VIEW_ANALYSIS", "VIEW_STOCK_ANALYSIS", "SELECT_STOCK"):
+        category_tag = "[MARKET]"
         ticker = details.get("ticker", "N/A")
         period = details.get("time_range", "1y")
-        summary_text = f"VIEWED STOCK ANALYSIS -> Ticker: {ticker} (Period: {period})"
+        summary_text = f"STOCK ANALYSIS | Ticker: {ticker} | Period: {period}"
 
-    elif action == "VIEW_ML_PREDICTIONS":
-        action_icon = "🤖"
+    elif action in ("TRAIN_ML_MODELS", "VIEW_ML_PREDICTIONS", "RUN_PREDICTION"):
+        category_tag = "[ML-MODEL]"
         ticker = details.get("ticker", "N/A")
-        model = details.get("model", "N/A")
-        summary_text = f"RAN MACHINE LEARNING PREDICTION -> Ticker: {ticker} | Model: {model}"
+        best_model = details.get("best_model", details.get("model", "Regression"))
+        rmse = details.get("rmse", details.get("best_rmse", ""))
+        rmse_str = f" | RMSE: {rmse}" if rmse else ""
+        acc = details.get("directional_accuracy", "")
+        acc_str = f" | Accuracy: {acc}" if acc else ""
+        summary_text = f"ML MODEL TRAINED | Ticker: {ticker} | Best: {best_model}{rmse_str}{acc_str}"
 
-    elif action == "VIEW_PORTFOLIO":
-        action_icon = "💼"
-        portfolio_name = details.get("portfolio", "N/A")
-        summary_text = f"ANALYZED PORTFOLIO -> Strategy: {portfolio_name}"
+    elif action in ("VIEW_PORTFOLIO", "OPTIMIZE_PORTFOLIO"):
+        category_tag = "[PORTFOLIO]"
+        portfolio_name = details.get("portfolio", details.get("strategy", "Custom"))
+        tickers = details.get("tickers", "")
+        tickers_str = f" | Assets: {tickers}" if tickers else ""
+        summary_text = f"PORTFOLIO MANAGEMENT | Strategy: {portfolio_name}{tickers_str}"
 
     elif action == "SESSION_STARTED":
-        action_icon = "🚀"
-        tier = details.get("tier", "pro").upper()
-        summary_text = f"SESSION ACTIVE -> Tier: {tier} Member"
+        category_tag = "[SESSION]"
+        tier = details.get("tier", "PRO").upper()
+        summary_text = f"SESSION ACTIVE | Tier: {tier} Member"
 
-    elif action == "VIEW_NEWS_SENTIMENT":
-        action_icon = "📰"
-        news_ticker = details.get("news_ticker", "All")
-        summary_text = f"VIEWED NEWS & SENTIMENT -> Ticker: {news_ticker}"
+    elif action in ("VIEW_NEWS_SENTIMENT", "SEARCH_NEWS"):
+        category_tag = "[NEWS]"
+        news_ticker = details.get("news_ticker", details.get("ticker", "All"))
+        summary_text = f"NEWS & SENTIMENT | Ticker: {news_ticker}"
 
-    elif action in ("VIEW_COMPARISON", "VIEW_STOCK_COMPARISON"):
-        action_icon = "⚖️"
+    elif action in ("VIEW_COMPARISON", "VIEW_STOCK_COMPARISON", "COMPARE_STOCKS"):
+        category_tag = "[COMPARE]"
         tickers = details.get("tickers", "Multi-Stock")
-        summary_text = f"COMPARED STOCKS -> {tickers}"
+        summary_text = f"STOCK COMPARISON | Assets: {tickers}"
 
     else:
-        action_icon = "⚡"
-        details_str = ", ".join(f"{k}: {v}" for k, v in details.items())
-        summary_text = f"{action} -> {details_str}"
+        category_tag = "[ACTION]"
+        details_str = " | ".join(f"{k}: {v}" for k, v in details.items())
+        summary_text = f"{action} | {details_str}"
 
-    # Print live trail in terminal
     local_time = time.strftime("%H:%M:%S")
-    print(f"[{local_time}] {action_icon} @{username:<14} | {summary_text}", flush=True)
+    print(f"[{local_time}] {category_tag:<11} [USER: {username:<12}] {summary_text}", flush=True)
 
-    # Write directly to local user directory on Mac
-    track_activity(action, username, details, skip_broadcast=True)
+    if username and username != "guest":
+        track_activity(action, username, details, skip_broadcast=True)
 
 
 def main():
-    print("\n" + "=" * 80, flush=True)
-    print(" 📡 MARKETPULSE REAL-TIME LIVE AUDIT STREAM & BACKEND SYNCHRONIZER", flush=True)
-    print("=" * 80, flush=True)
-    print(f" • Local Storage Directory:  {USERS_DIR}", flush=True)
-    print(" • Live Activity Feed:       🟢 CONNECTED & LISTENING (Sub-second latency)", flush=True)
-    print(" • Features:", flush=True)
-    print("   1. Live activity trail for every user across any computer / phone.", flush=True)
-    print("   2. Automatic creation & update of data/users/<username>/ in Finder.", flush=True)
-    print("=" * 80, flush=True)
-    print(" Waiting for live user activities on website (Press Ctrl+C to stop)...\n", flush=True)
+    print("\n" + "=" * 88, flush=True)
+    print(" MARKETPULSE INSTITUTIONAL AUDIT & SYNCHRONIZATION ENGINE [v3.4]", flush=True)
+    print("=" * 88, flush=True)
+    print(f" Storage Directory:  {USERS_DIR}", flush=True)
+    print(" Telemetry Stream:   ONLINE [Sub-millisecond socket listener]", flush=True)
+    print(" Audit Mode:         Continuous Multi-User Synchronization", flush=True)
+    print("=" * 88, flush=True)
+    print(" Listening for live user events (Press Ctrl+C to terminate)...\n", flush=True)
 
     try:
         listen_live_stream(handle_incoming_cloud_event)
     except KeyboardInterrupt:
-        print("\n Stream listener stopped.")
+        print("\n Audit listener terminated.", flush=True)
 
 
 if __name__ == "__main__":

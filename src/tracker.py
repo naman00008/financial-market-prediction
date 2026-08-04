@@ -126,17 +126,17 @@ def update_user_human_readable_report(username: str) -> None:
 
     report_lines = [
         "=" * 80,
-        f" USER DOSSIER & ACTIVITY REPORT: @{safe_username}",
+        f" MARKETPULSE USER AUDIT DOSSIER: @{safe_username}",
         "=" * 80,
-        f" • Full Name:         {prof.get('full_name', 'N/A')}",
-        f" • Username:          @{safe_username}",
-        f" • Email Address:     {prof.get('email', 'N/A')}",
-        f" • Membership Tier:   {str(prof.get('tier', 'PRO')).upper()}",
-        f" • Registered Date:   {prof.get('registered_at', 'N/A')}",
-        f" • Last Active Time:  {prof.get('last_active', 'N/A')}",
-        f" • Total Activities:  {len(events)} logged movements",
+        f" Full Name:         {prof.get('full_name', 'N/A')}",
+        f" Username:          @{safe_username}",
+        f" Email Address:     {prof.get('email', 'N/A')}",
+        f" Membership Tier:   {str(prof.get('tier', 'PRO')).upper()}",
+        f" Registered Date:   {prof.get('registered_at', 'N/A')}",
+        f" Last Active Time:  {prof.get('last_active', 'N/A')}",
+        f" Total Activities:  {len(events)} recorded transactions",
         "=" * 80,
-        "\n CHRONOLOGICAL USER ACTIVITY TIMELINE (Most Recent First):",
+        "\n CHRONOLOGICAL AUDIT TRAIL (Most Recent First):",
         "-" * 80,
     ]
 
