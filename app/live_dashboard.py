@@ -325,6 +325,17 @@ def display_price_metrics(current_data: Dict):
 
 
 def main():
+    # Authentication Gatekeeper (Login / Sign Up)
+    try:
+        from auth_ui import require_auth
+        current_user = require_auth()
+    except Exception:
+        try:
+            from app.auth_ui import require_auth
+            current_user = require_auth()
+        except Exception:
+            pass
+
     # Main header
     st.markdown('<h1 class="main-header">Live Stock Market Dashboard</h1>', unsafe_allow_html=True)
     st.markdown("Real-time stock prices, live charts, and financial news analysis")

@@ -217,6 +217,104 @@ CUSTOM_CSS = """
     a:hover {
         text-decoration: underline;
     }
+
+    /* Auth Page Hero Banner */
+    .auth-hero-banner {
+        text-align: center;
+        padding: 2.5rem 1.5rem 1.8rem 1.5rem;
+        background: radial-gradient(circle at 50% 0%, rgba(37, 99, 235, 0.25) 0%, rgba(15, 23, 42, 0.8) 100%);
+        border: 1px solid #1e3a8a;
+        border-radius: 1rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4);
+    }
+
+    .auth-badge {
+        display: inline-block;
+        background: rgba(37, 99, 235, 0.2);
+        color: #38bdf8;
+        border: 1px solid rgba(56, 189, 248, 0.4);
+        padding: 4px 14px;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        margin-bottom: 0.75rem;
+    }
+
+    .auth-title {
+        font-size: 2.2rem;
+        font-weight: 800;
+        background: linear-gradient(135deg, #ffffff 0%, #93c5fd 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin: 0.25rem 0 0.75rem 0;
+    }
+
+    .auth-subtitle {
+        color: #94a3b8;
+        font-size: 1rem;
+        max-width: 750px;
+        margin: 0 auto;
+        line-height: 1.5;
+    }
+
+    /* Auth Feature Showcase Box */
+    .auth-feature-box {
+        background: rgba(30, 41, 59, 0.7);
+        border: 1px solid #334155;
+        border-radius: 1rem;
+        padding: 1.75rem;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+    }
+
+    .auth-feature-item {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        margin-bottom: 1.25rem;
+    }
+
+    .auth-feature-icon {
+        font-size: 1.4rem;
+        background: rgba(15, 23, 42, 0.6);
+        border: 1px solid #334155;
+        padding: 6px 10px;
+        border-radius: 8px;
+    }
+
+    /* Auth Card Form */
+    .auth-card-container {
+        background: rgba(30, 41, 59, 0.85);
+        border: 1px solid #334155;
+        border-radius: 1rem;
+        padding: 1.5rem;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+    }
+
+    /* Sidebar User Profile Card */
+    .sidebar-user-card {
+        background: linear-gradient(135deg, rgba(30, 41, 59, 0.9) 0%, rgba(15, 23, 42, 0.9) 100%);
+        border: 1px solid #334155;
+        border-radius: 0.75rem;
+        padding: 1rem;
+        margin-bottom: 1.25rem;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    }
+
+    .user-avatar-circle {
+        width: 38px;
+        height: 38px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #2563eb 0%, #38bdf8 100%);
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 800;
+        font-size: 0.9rem;
+        box-shadow: 0 2px 6px rgba(37, 99, 235, 0.4);
+    }
 </style>
 """
 

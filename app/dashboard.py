@@ -1622,6 +1622,17 @@ def main():
             layout="wide",
             initial_sidebar_state="expanded",
         )
+
+        # Apply custom styling on each rerun
+        try:
+            from app.styling import apply_custom_styling
+            apply_custom_styling()
+        except ImportError:
+            pass
+
+        # Authentication Gatekeeper (Login / Sign Up)
+        from app.auth_ui import require_auth
+        current_user = require_auth()
         
         # Configure page cache and session state
         if 'page_load_time' not in st.session_state:
