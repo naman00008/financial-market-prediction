@@ -252,14 +252,14 @@ def render_sidebar_user_profile() -> None:
 def require_auth() -> Optional[Dict[str, Any]]:
     """
     Main authentication gatekeeper.
-    Returns user dict if authenticated; otherwise displays auth screen and stops execution.
+    Returns user dict if authenticated; otherwise displays auth screen and returns None.
     """
     init_session_auth()
     
-    if not st.session_state.authenticated or not st.session_state.user:
+    if not st.session_state.get("authenticated", False) or not st.session_state.get("user"):
         render_auth_page()
-        st.stop()
         return None
     
     render_sidebar_user_profile()
     return st.session_state.user
+

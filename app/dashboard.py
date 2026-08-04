@@ -10,12 +10,6 @@ import plotly.graph_objects as go
 import streamlit as st
 import uuid
 
-# Apply professional styling
-try:
-    from app.styling import apply_custom_styling
-    apply_custom_styling()
-except ImportError:
-    pass
 
 # Ensure project root (so `import src...` works) is on sys.path
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -1631,8 +1625,14 @@ def main():
             pass
 
         # Authentication Gatekeeper (Login / Sign Up)
-        from app.auth_ui import require_auth
+        try:
+            from app.auth_ui import require_auth
+        except Exception:
+            from auth_ui import require_auth
+        
         current_user = require_auth()
+        if not current_user:
+            return
         
         # Configure page cache and session state
         if 'page_load_time' not in st.session_state:

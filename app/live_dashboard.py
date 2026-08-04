@@ -326,6 +326,7 @@ def display_price_metrics(current_data: Dict):
 
 def main():
     # Authentication Gatekeeper (Login / Sign Up)
+    current_user = None
     try:
         from auth_ui import require_auth
         current_user = require_auth()
@@ -335,6 +336,9 @@ def main():
             current_user = require_auth()
         except Exception:
             pass
+
+    if not current_user:
+        return
 
     # Main header
     st.markdown('<h1 class="main-header">Live Stock Market Dashboard</h1>', unsafe_allow_html=True)
