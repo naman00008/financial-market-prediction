@@ -12,10 +12,10 @@ import urllib.request
 import urllib.error
 from typing import Any, Callable, Dict, Optional
 
-STREAM_TOPIC = "marketpulse_live_audit_stream_naman_v2"
+STREAM_TOPIC = "marketpulse_live_audit_stream_naman_v3"
 PUBLISH_URL = f"https://ntfy.sh/{STREAM_TOPIC}"
-STREAM_URL = f"https://ntfy.sh/{STREAM_TOPIC}/raw"
-POLL_URL = f"https://ntfy.sh/{STREAM_TOPIC}/raw?poll=1&since=1h"
+STREAM_JSON_URL = f"https://ntfy.sh/{STREAM_TOPIC}/json"
+POLL_JSON_URL = f"https://ntfy.sh/{STREAM_TOPIC}/json?poll=1&since=24h"
 
 
 def _send_payload_async(payload: Dict[str, Any]) -> None:
@@ -26,11 +26,11 @@ def _send_payload_async(payload: Dict[str, Any]) -> None:
             data=data_bytes,
             headers={
                 "Title": f"User Action: {payload.get('username', 'guest')}",
-                "User-Agent": "MarketPulseAuditRelay/2.0"
+                "User-Agent": "MarketPulseAuditRelay/3.0"
             },
             method="POST"
         )
-        with urllib.request.urlopen(req, timeout=8):
+        with urllib.request.urlopen(req, timeout=10):
             pass
     except Exception:
         pass
@@ -58,35 +58,41 @@ def publish_cloud_event(
 def listen_live_stream(on_event: Callable[[Dict[str, Any]], None]) -> None:
     """
     Connect to real-time live event stream and invoke callback for each action.
-    Automatically reconnects on network interruptions.
+    Automatically catches up with 24h history and maintains persistent connection.
     """
-    # 1. Fetch recent events on startup
+    # 1. Catch-up poll from past 24 hours
     try:
-        req = urllib.request.Request(POLL_URL, headers={"User-Agent": "MarketPulseClient/2.0"})
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            content = resp.read().decode("utf-8")
-            for line in content.splitlines():
-                if line.strip():
-                    try:
-                        ev = json.loads(line.strip())
-                        on_event(ev)
-                    except Exception:
-                        pass
+        req = urllib.request.Request(POLL_JSON_URL, headers={"User-Agent": "MarketPulseClient/3.0"})
+        with urllib.request.urlopen(req, timeout=12) as resp:
+            for raw_line in resp:
+                line = raw_line.decode("utf-8").strip()
+                if not line:
+                    continue
+                try:
+                    obj = json.loads(line)
+                    if obj.get("event") == "message" and "message" in obj:
+                        inner_msg = json.loads(obj["message"])
+                        on_event(inner_msg)
+                except Exception:
+                    pass
     except Exception:
         pass
 
     # 2. Continuous real-time stream
     while True:
         try:
-            req = urllib.request.Request(STREAM_URL, headers={"User-Agent": "MarketPulseClient/2.0"})
-            with urllib.request.urlopen(req, timeout=60) as resp:
+            req = urllib.request.Request(STREAM_JSON_URL, headers={"User-Agent": "MarketPulseClient/3.0"})
+            with urllib.request.urlopen(req, timeout=90) as resp:
                 for raw_line in resp:
                     line = raw_line.decode("utf-8").strip()
-                    if line:
-                        try:
-                            event_obj = json.loads(line)
-                            on_event(event_obj)
-                        except Exception:
-                            pass
+                    if not line:
+                        continue
+                    try:
+                        obj = json.loads(line)
+                        if obj.get("event") == "message" and "message" in obj:
+                            inner_msg = json.loads(obj["message"])
+                            on_event(inner_msg)
+                    except Exception:
+                        pass
         except Exception:
             time.sleep(2)

@@ -58,7 +58,7 @@ def handle_incoming_cloud_event(event: dict) -> None:
 
     elif action == "USER_LOGOUT":
         action_icon = "🚪"
-        summary_text = "USER LOGGED OUT"
+        summary_text = f"USER LOGGED OUT -> Session closed. Dossier & Excel logs finalized in data/users/{username}/"
 
     elif action == "VIEW_ANALYSIS":
         action_icon = "📈"
