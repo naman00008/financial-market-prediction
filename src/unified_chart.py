@@ -263,7 +263,22 @@ def render_unified_analysis_section(ticker: str, df: pd.DataFrame, all_tickers: 
     
     # Indicator selection controls
     st.subheader("Analysis Indicators")
-    st.markdown("Select technical indicators to display on the chart above:")
+    
+    try:
+        from app.auth_ui import is_authenticated
+    except Exception:
+        try:
+            from auth_ui import is_authenticated
+        except Exception:
+            def is_authenticated():
+                return True
+
+    user_logged_in = is_authenticated()
+
+    if not user_logged_in:
+        st.markdown("<p style='color: #94a3b8; font-size: 0.88rem;'>Basic volume is displayed below. Sign in to enable real-time RSI, MACD, Bollinger Bands, and Stochastic overlays.</p>", unsafe_allow_html=True)
+    else:
+        st.markdown("Select technical indicators to display on the chart above:")
     
     col1, col2, col3, col4 = st.columns(4)
     
@@ -275,30 +290,30 @@ def render_unified_analysis_section(ticker: str, df: pd.DataFrame, all_tickers: 
             selected_indicators.append("Volume")
     
     with col2:
-        show_rsi = st.checkbox("RSI (14)", value=False, key=f"{ticker}_rsi")
-        if show_rsi:
+        show_rsi = st.checkbox("RSI (14)", value=False, disabled=not user_logged_in, key=f"{ticker}_rsi", help="Sign in to unlock" if not user_logged_in else None)
+        if show_rsi and user_logged_in:
             selected_indicators.append("RSI")
     
     with col3:
-        show_macd = st.checkbox("MACD", value=False, key=f"{ticker}_macd")
-        if show_macd:
+        show_macd = st.checkbox("MACD", value=False, disabled=not user_logged_in, key=f"{ticker}_macd", help="Sign in to unlock" if not user_logged_in else None)
+        if show_macd and user_logged_in:
             selected_indicators.append("MACD")
     
     with col4:
-        show_bb = st.checkbox("Bollinger Bands", value=False, key=f"{ticker}_bb")
-        if show_bb:
+        show_bb = st.checkbox("Bollinger Bands", value=False, disabled=not user_logged_in, key=f"{ticker}_bb", help="Sign in to unlock" if not user_logged_in else None)
+        if show_bb and user_logged_in:
             selected_indicators.append("Bollinger Bands")
     
     col5, col6 = st.columns(2)
     
     with col5:
-        show_stoch = st.checkbox("Stochastic", value=False, key=f"{ticker}_stoch")
-        if show_stoch:
+        show_stoch = st.checkbox("Stochastic", value=False, disabled=not user_logged_in, key=f"{ticker}_stoch", help="Sign in to unlock" if not user_logged_in else None)
+        if show_stoch and user_logged_in:
             selected_indicators.append("Stochastic")
     
     with col6:
-        show_williams = st.checkbox("Williams %R", value=False, key=f"{ticker}_williams")
-        if show_williams:
+        show_williams = st.checkbox("Williams %R", value=False, disabled=not user_logged_in, key=f"{ticker}_williams", help="Sign in to unlock" if not user_logged_in else None)
+        if show_williams and user_logged_in:
             selected_indicators.append("Williams %R")
     
     fig = build_unified_technical_chart(df, ticker, selected_indicators, chart_type)

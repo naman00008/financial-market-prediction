@@ -1623,15 +1623,14 @@ def main():
         except ImportError:
             pass
 
-        # Authentication Gatekeeper (Login / Sign Up)
+        # Authentication Session Management & Sidebar Widget
         try:
-            from app.auth_ui import require_auth
+            from app.auth_ui import init_session_auth, render_sidebar_auth_widget, render_feature_gate
         except Exception:
-            from auth_ui import require_auth
+            from auth_ui import init_session_auth, render_sidebar_auth_widget, render_feature_gate
         
-        current_user = require_auth()
-        if not current_user:
-            return
+        init_session_auth()
+        render_sidebar_auth_widget()
         
         # Configure page cache and session state
         if 'page_load_time' not in st.session_state:
@@ -1791,18 +1790,39 @@ def main():
 
         with tabs[1]:
             st.header("Market News & Sentiment Analysis")
-            render_news_sentiment(news_ticker, tickers)
+            if render_feature_gate(
+                feature_name="Market News & Sentiment Analysis",
+                description="Live financial news aggregation, VADER sentiment scoring, and company impact ratings require user authentication.",
+                key_suffix="news"
+            ):
+                render_news_sentiment(news_ticker, tickers)
 
         with tabs[2]:
             st.header("Model Training & Predictions")
-            render_model_predictions(df, ticker)
+            if render_feature_gate(
+                feature_name="Machine Learning Price Predictions",
+                description="Trained ML models (Random Forest, XGBoost, Ridge, Lasso) and forward price forecasts require user authentication.",
+                key_suffix="ml"
+            ):
+                render_model_predictions(df, ticker)
 
         with tabs[3]:
             st.header("Multi-Stock Comparison")
-            render_stock_comparison(tickers)
+            if render_feature_gate(
+                feature_name="Multi-Stock Comparative Analysis",
+                description="Multi-ticker normalized performance comparisons, correlation matrices, and risk-return scatter plots require user authentication.",
+                key_suffix="compare"
+            ):
+                render_stock_comparison(tickers)
+
         with tabs[4]:
             st.header("Portfolio Management")
-            render_portfolio_management(tickers)
+            if render_feature_gate(
+                feature_name="Portfolio Management & Optimization",
+                description="Custom portfolio weight allocation, Sharpe ratio optimization, and drawdown analytics require user authentication.",
+                key_suffix="portfolio"
+            ):
+                render_portfolio_management(tickers)
 
     except Exception as e:
         st.error(f"An unexpected error occurred: {e}")

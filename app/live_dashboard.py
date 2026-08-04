@@ -326,19 +326,14 @@ def display_price_metrics(current_data: Dict):
 
 def main():
     # Authentication Gatekeeper (Login / Sign Up)
-    current_user = None
+    # Authentication Session Management & Sidebar Widget
     try:
-        from auth_ui import require_auth
-        current_user = require_auth()
+        from app.auth_ui import init_session_auth, render_sidebar_auth_widget, render_feature_gate
     except Exception:
-        try:
-            from app.auth_ui import require_auth
-            current_user = require_auth()
-        except Exception:
-            pass
+        from auth_ui import init_session_auth, render_sidebar_auth_widget, render_feature_gate
 
-    if not current_user:
-        return
+    init_session_auth()
+    render_sidebar_auth_widget()
 
     # Main header
     st.markdown('<h1 class="main-header">Live Stock Market Dashboard</h1>', unsafe_allow_html=True)
@@ -441,145 +436,170 @@ def main():
 
         with tabs[1]:
             st.subheader("Technical Indicators")
-            indicator_tabs = st.tabs(["RSI", "MACD"])
-            with indicator_tabs[0]:
-                rsi_chart = create_technical_indicators_chart(df, 'RSI')
-                st.plotly_chart(rsi_chart, width='stretch')
-            with indicator_tabs[1]:
-                macd_chart = create_technical_indicators_chart(df, 'MACD')
-                st.plotly_chart(macd_chart, width='stretch')
+            if render_feature_gate(
+                feature_name="Technical Indicators (RSI & MACD)",
+                description="Real-time oscillator tracking, RSI overbought/oversold bands, and MACD trend divergence require user authentication.",
+                key_suffix="live_tech"
+            ):
+                indicator_tabs = st.tabs(["RSI", "MACD"])
+                with indicator_tabs[0]:
+                    rsi_chart = create_technical_indicators_chart(df, 'RSI')
+                    st.plotly_chart(rsi_chart, width='stretch')
+                with indicator_tabs[1]:
+                    macd_chart = create_technical_indicators_chart(df, 'MACD')
+                    st.plotly_chart(macd_chart, width='stretch')
 
         with tabs[2]:
             st.subheader("Live Financial News & Sentiment")
-            with st.spinner("Loading latest news..."):
-                news_df = get_cached_news(selected_ticker, limit=15)
+            if render_feature_gate(
+                feature_name="Financial News & Sentiment Engine",
+                description="Live financial news aggregation, VADER sentiment scoring, and market impact ratings require user authentication.",
+                key_suffix="live_news"
+            ):
+                with st.spinner("Loading latest news..."):
+                    news_df = get_cached_news(selected_ticker, limit=15)
 
-            if not news_df.empty:
-                col1, col2 = st.columns([2, 1])
-                with col1:
-                    st.markdown("**Latest Headlines**")
-                    for _, row in news_df.head(10).iterrows():
-                        label = row.get('sentiment_label', 'neutral')
-                        label_color = '#10b981' if label == 'positive' else '#ef4444' if label == 'negative' else '#94a3b8'
-                        st.markdown(f"""
-                        <div style="border-left: 3px solid {label_color}; padding-left: 10px; margin-bottom:10px;">
-                            <strong>{row['title']}</strong><br>
-                            <small>{row['source']} • {pd.to_datetime(row['published_at']).strftime('%d %b %Y, %H:%M')} • <span style="color: {label_color}; font-weight: 600;">{label.upper()}</span></small>
-                        </div>
-                        """, unsafe_allow_html=True)
-                with col2:
-                    pie_chart, timeline_chart, hist_chart = create_sentiment_charts(news_df)
-                    if pie_chart:
-                        st.plotly_chart(pie_chart, width='stretch')
-                        st.plotly_chart(timeline_chart, width='stretch')
-            else:
-                st.info("No news available at the moment.")
+                if not news_df.empty:
+                    col1, col2 = st.columns([2, 1])
+                    with col1:
+                        st.markdown("**Latest Headlines**")
+                        for _, row in news_df.head(10).iterrows():
+                            label = row.get('sentiment_label', 'neutral')
+                            label_color = '#10b981' if label == 'positive' else '#ef4444' if label == 'negative' else '#94a3b8'
+                            st.markdown(f"""
+                            <div style="border-left: 3px solid {label_color}; padding-left: 10px; margin-bottom:10px;">
+                                <strong>{row['title']}</strong><br>
+                                <small>{row['source']} • {pd.to_datetime(row['published_at']).strftime('%d %b %Y, %H:%M')} • <span style="color: {label_color}; font-weight: 600;">{label.upper()}</span></small>
+                            </div>
+                            """, unsafe_allow_html=True)
+                    with col2:
+                        pie_chart, timeline_chart, hist_chart = create_sentiment_charts(news_df)
+                        if pie_chart:
+                            st.plotly_chart(pie_chart, width='stretch')
+                            st.plotly_chart(timeline_chart, width='stretch')
+                else:
+                    st.info("No news available at the moment.")
 
         with tabs[3]:
             st.subheader("ML Price Predictions")
-            try:
-                hist_df = get_cached_hist_data(selected_ticker, period="2y", interval="1d")
-                if not hist_df.empty and len(hist_df) > 100:
-                    features = create_features(hist_df)
-                    with st.spinner(f"Training ML models for {selected_ticker}..."):
-                        results = get_trained_models(features)
-                    
-                    if results:
-                        # Display model performance metrics
-                        cols = st.columns(3)
-                        for idx, (name, data) in enumerate(sorted(results.items(), key=lambda x: x[1].get('r2_score', 0), reverse=True)):
-                            r2 = data.get('r2_score', 0)
-                            with cols[idx]:
-                                st.metric(f"{name.replace('_', ' ').title()}", f"R² = {r2:.4f}")
+            if render_feature_gate(
+                feature_name="Machine Learning Price Predictions",
+                description="Trained machine learning models (Random Forest, XGBoost, Ridge, Lasso) and forward price forecasts require user authentication.",
+                key_suffix="live_ml"
+            ):
+                try:
+                    hist_df = get_cached_hist_data(selected_ticker, period="2y", interval="1d")
+                    if not hist_df.empty and len(hist_df) > 100:
+                        features = create_features(hist_df)
+                        with st.spinner(f"Training ML models for {selected_ticker}..."):
+                            results = get_trained_models(features)
                         
-                        # Get best model
-                        best_model_name, best_model_data = max(results.items(), key=lambda x: x[1].get('r2_score', 0))
-                        st.markdown(f"### Top Performing Model: **{best_model_name.replace('_', ' ').title()}**")
-                        
-                        # Extract predictions
-                        y_pred = best_model_data.get('y_pred')
-                        y_test = best_model_data.get('y_test')
-                        x_test = best_model_data.get('X_test')
-                        
-                        if y_pred is not None and y_test is not None and x_test is not None:
-                            try:
-                                # Prepare plot data
-                                x_idx = list(range(len(y_pred)))[-50:]
-                                y_pred_plot = y_pred[-50:] if isinstance(y_pred, list) else y_pred[-50:].tolist()
-                                y_test_plot = y_test.iloc[-50:].values if hasattr(y_test, 'iloc') else y_test[-50:]
-                                
-                                # Create comparison chart
-                                fig = go.Figure()
-                                fig.add_trace(go.Scatter(
-                                    x=x_idx,
-                                    y=y_test_plot,
-                                    mode='lines',
-                                    name='Actual Price',
-                                    line=dict(color='#1f77b4', width=2)
-                                ))
-                                fig.add_trace(go.Scatter(
-                                    x=x_idx,
-                                    y=y_pred_plot,
-                                    mode='lines',
-                                    name='Predicted Price',
-                                    line=dict(color='#ff7f0e', width=2, dash='dash')
-                                ))
-                                fig.update_layout(
-                                    title=f'{selected_ticker} - Actual vs Predicted Price (Last 50 Days)',
-                                    xaxis_title='Day Index',
-                                    yaxis_title='Price (₹)',
-                                    template='plotly_white',
-                                    height=450,
-                                    hovermode='x unified'
-                                )
-                                st.plotly_chart(fig, use_container_width=True)
-                                
-                                # Show residuals
-                                residuals = y_test_plot - y_pred_plot if hasattr(y_test_plot, '__sub__') else [a - b for a, b in zip(y_test_plot, y_pred_plot)]
-                                fig_residuals = go.Figure()
-                                fig_residuals.add_trace(go.Scatter(
-                                    x=x_idx,
-                                    y=residuals,
-                                    mode='markers',
-                                    name='Residuals',
-                                    marker=dict(color='#ff6b6b', size=6)
-                                ))
-                                fig_residuals.add_hline(y=0, line_dash="dash", line_color="gray")
-                                fig_residuals.update_layout(
-                                    title='Prediction Residuals (Actual - Predicted)',
-                                    xaxis_title='Day Index',
-                                    yaxis_title='Residual Value (₹)',
-                                    template='plotly_white',
-                                    height=300
-                                )
-                                st.plotly_chart(fig_residuals, use_container_width=True)
-                            except Exception as plot_error:
-                                st.error(f"Error plotting predictions: {plot_error}")
+                        if results:
+                            # Display model performance metrics
+                            cols = st.columns(3)
+                            for idx, (name, data) in enumerate(sorted(results.items(), key=lambda x: x[1].get('r2_score', 0), reverse=True)):
+                                r2 = data.get('r2_score', 0)
+                                with cols[idx]:
+                                    st.metric(f"{name.replace('_', ' ').title()}", f"R² = {r2:.4f}")
+                            
+                            # Get best model
+                            best_model_name, best_model_data = max(results.items(), key=lambda x: x[1].get('r2_score', 0))
+                            st.markdown(f"### Top Performing Model: **{best_model_name.replace('_', ' ').title()}**")
+                            
+                            # Extract predictions
+                            y_pred = best_model_data.get('y_pred')
+                            y_test = best_model_data.get('y_test')
+                            x_test = best_model_data.get('X_test')
+                            
+                            if y_pred is not None and y_test is not None and x_test is not None:
+                                try:
+                                    # Prepare plot data
+                                    x_idx = list(range(len(y_pred)))[-50:]
+                                    y_pred_plot = y_pred[-50:] if isinstance(y_pred, list) else y_pred[-50:].tolist()
+                                    y_test_plot = y_test.iloc[-50:].values if hasattr(y_test, 'iloc') else y_test[-50:]
+                                    
+                                    # Create comparison chart
+                                    fig = go.Figure()
+                                    fig.add_trace(go.Scatter(
+                                        x=x_idx,
+                                        y=y_test_plot,
+                                        mode='lines',
+                                        name='Actual Price',
+                                        line=dict(color='#1f77b4', width=2)
+                                    ))
+                                    fig.add_trace(go.Scatter(
+                                        x=x_idx,
+                                        y=y_pred_plot,
+                                        mode='lines',
+                                        name='Predicted Price',
+                                        line=dict(color='#ff7f0e', width=2, dash='dash')
+                                    ))
+                                    fig.update_layout(
+                                        title=f'{selected_ticker} - Actual vs Predicted Price (Last 50 Days)',
+                                        xaxis_title='Day Index',
+                                        yaxis_title='Price (₹)',
+                                        template='plotly_white',
+                                        height=450,
+                                        hovermode='x unified'
+                                    )
+                                    st.plotly_chart(fig, use_container_width=True)
+                                    
+                                    # Show residuals
+                                    residuals = y_test_plot - y_pred_plot if hasattr(y_test_plot, '__sub__') else [a - b for a, b in zip(y_test_plot, y_pred_plot)]
+                                    fig_residuals = go.Figure()
+                                    fig_residuals.add_trace(go.Scatter(
+                                        x=x_idx,
+                                        y=residuals,
+                                        mode='markers',
+                                        name='Residuals',
+                                        marker=dict(color='#ff6b6b', size=6)
+                                    ))
+                                    fig_residuals.add_hline(y=0, line_dash="dash", line_color="gray")
+                                    fig_residuals.update_layout(
+                                        title='Prediction Residuals (Actual - Predicted)',
+                                        xaxis_title='Day Index',
+                                        yaxis_title='Residual Value (₹)',
+                                        template='plotly_white',
+                                        height=300
+                                    )
+                                    st.plotly_chart(fig_residuals, use_container_width=True)
+                                except Exception as plot_error:
+                                    st.error(f"Error plotting predictions: {plot_error}")
+                            else:
+                                st.error("Model prediction arrays are incomplete or missing.")
                         else:
-                            st.error("Model prediction arrays are incomplete or missing.")
+                            st.info("Unable to train ML models. Please try a different stock or time range.")
                     else:
-                        st.info("Unable to train ML models. Please try a different stock or time range.")
-                else:
-                    st.info("Insufficient historical data for ML predictions (need >100 data points).")
-            except Exception as e:
-                st.error(f"ML prediction error: {e}")
-                import traceback
-                with st.expander("Error Details"):
-                    st.code(traceback.format_exc())
+                        st.info("Insufficient historical data for ML predictions (need >100 data points).")
+                except Exception as e:
+                    st.error(f"ML prediction error: {e}")
+                    import traceback
+                    with st.expander("Error Details"):
+                        st.code(traceback.format_exc())
 
         with tabs[4]:
             st.header("Compare Stocks")
-            if all_tickers:
-                render_stock_comparison(all_tickers)
-            else:
-                st.warning("Unable to load stock list for comparison.")
+            if render_feature_gate(
+                feature_name="Multi-Stock Comparative Analytics",
+                description="Cross-asset normalized price comparisons, correlation matrices, and risk-return scatter plots require user authentication.",
+                key_suffix="live_compare"
+            ):
+                if all_tickers:
+                    render_stock_comparison(all_tickers)
+                else:
+                    st.warning("Unable to load stock list for comparison.")
 
         with tabs[5]:
             st.header("Portfolio Management")
-            if all_tickers:
-                render_portfolio_management(all_tickers)
-            else:
-                st.warning("Unable to load stock list for portfolio management.")
+            if render_feature_gate(
+                feature_name="Portfolio Management & Optimization",
+                description="Custom portfolio weight allocation, Sharpe ratio optimization, and drawdown analytics require user authentication.",
+                key_suffix="live_portfolio"
+            ):
+                if all_tickers:
+                    render_portfolio_management(all_tickers)
+                else:
+                    st.warning("Unable to load stock list for portfolio management.")
 
     except Exception as e:
         st.error(f"Error loading data: {e}")
