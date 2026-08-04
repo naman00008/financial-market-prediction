@@ -1612,7 +1612,6 @@ def main():
     try:
         st.set_page_config(
             page_title="Stock Market Analysis Platform",
-            page_icon="📈",
             layout="wide",
             initial_sidebar_state="expanded",
         )

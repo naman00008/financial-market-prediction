@@ -346,7 +346,7 @@ def main():
 
     # Sidebar
     with st.sidebar:
-        st.markdown('<div class="sidebar-header">🎯 Stock Selection</div>', unsafe_allow_html=True)
+        st.markdown('<div class="sidebar-header">Stock Selection</div>', unsafe_allow_html=True)
 
         # Company search
         search_term = st.text_input("Search companies", placeholder="Type company name...")
@@ -384,12 +384,12 @@ def main():
 
         # Auto-refresh indicator
         st.markdown("---")
-        st.markdown("🔄 **Auto-refresh:** Every 60 seconds")
+        st.markdown("**Auto-refresh:** Every 60 seconds")
         st.markdown(f"**Last updated:** {time.strftime('%H:%M:%S')}")
 
         # Current price quick view
         st.markdown("---")
-        st.markdown("💰 **Quick Price View**")
+        st.markdown("**Market Snapshot**")
         try:
             current_data = get_cached_current_price(selected_ticker)
             if 'error' not in current_data:
@@ -435,12 +435,12 @@ def main():
         with tabs[0]:
             st.subheader("Current Price & Metrics")
             display_price_metrics(current_data)
-            st.subheader("📈 Live Price Chart")
+            st.subheader("Live Price Chart")
             chart = create_live_price_chart(df, selected_ticker)
             st.plotly_chart(chart, width='stretch')
 
         with tabs[1]:
-            st.subheader("🔧 Technical Indicators")
+            st.subheader("Technical Indicators")
             indicator_tabs = st.tabs(["RSI", "MACD"])
             with indicator_tabs[0]:
                 rsi_chart = create_technical_indicators_chart(df, 'RSI')
@@ -450,7 +450,7 @@ def main():
                 st.plotly_chart(macd_chart, width='stretch')
 
         with tabs[2]:
-            st.subheader("📰 Live Financial News & Sentiment")
+            st.subheader("Live Financial News & Sentiment")
             with st.spinner("Loading latest news..."):
                 news_df = get_cached_news(selected_ticker, limit=15)
 
@@ -459,15 +459,12 @@ def main():
                 with col1:
                     st.markdown("**Latest Headlines**")
                     for _, row in news_df.head(10).iterrows():
-                        sentiment_color = {
-                            'positive': '🟢',
-                            'neutral': '🟡',
-                            'negative': '🔴'
-                        }.get(row.get('sentiment_label', 'neutral'), '🟡')
+                        label = row.get('sentiment_label', 'neutral')
+                        label_color = '#10b981' if label == 'positive' else '#ef4444' if label == 'negative' else '#94a3b8'
                         st.markdown(f"""
-                        <div style="border-left: 3px solid {'#28a745' if row.get('sentiment_label') == 'positive' else '#dc3545' if row.get('sentiment_label') == 'negative' else '#ffc107'}; padding-left: 10px; margin-bottom:10px;">
+                        <div style="border-left: 3px solid {label_color}; padding-left: 10px; margin-bottom:10px;">
                             <strong>{row['title']}</strong><br>
-                            <small>{row['source']} • {pd.to_datetime(row['published_at']).strftime('%d %b %Y, %H:%M')} • {sentiment_color} {row.get('sentiment_label', 'N/A').title()}</small>
+                            <small>{row['source']} • {pd.to_datetime(row['published_at']).strftime('%d %b %Y, %H:%M')} • <span style="color: {label_color}; font-weight: 600;">{label.upper()}</span></small>
                         </div>
                         """, unsafe_allow_html=True)
                 with col2:
@@ -497,7 +494,7 @@ def main():
                         
                         # Get best model
                         best_model_name, best_model_data = max(results.items(), key=lambda x: x[1].get('r2_score', 0))
-                        st.markdown(f"### 🏆 Best Model: **{best_model_name.replace('_', ' ').title()}**")
+                        st.markdown(f"### Top Performing Model: **{best_model_name.replace('_', ' ').title()}**")
                         
                         # Extract predictions
                         y_pred = best_model_data.get('y_pred')
