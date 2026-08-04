@@ -89,23 +89,23 @@ def handle_incoming_cloud_event(event: dict) -> None:
 
     # Print live trail in terminal
     local_time = time.strftime("%H:%M:%S")
-    print(f"[{local_time}] {action_icon} @{username:<14} | {summary_text}")
+    print(f"[{local_time}] {action_icon} @{username:<14} | {summary_text}", flush=True)
 
     # Write directly to local user directory on Mac
     track_activity(action, username, details, skip_broadcast=True)
 
 
 def main():
-    print("\n" + "=" * 80)
-    print(" 📡 MARKETPULSE REAL-TIME LIVE AUDIT STREAM & BACKEND SYNCHRONIZER")
-    print("=" * 80)
-    print(f" • Local Storage Directory:  {USERS_DIR}")
-    print(f" • Live Activity Feed:       🟢 CONNECTED & LISTENING (Sub-second latency)")
-    print(" • Features:")
-    print("   1. Live activity trail for every user across any computer / phone.")
-    print("   2. Automatic creation & update of data/users/<username>/ in Finder.")
-    print("=" * 80)
-    print(" Waiting for live user activities on website (Press Ctrl+C to stop)...\n")
+    print("\n" + "=" * 80, flush=True)
+    print(" 📡 MARKETPULSE REAL-TIME LIVE AUDIT STREAM & BACKEND SYNCHRONIZER", flush=True)
+    print("=" * 80, flush=True)
+    print(f" • Local Storage Directory:  {USERS_DIR}", flush=True)
+    print(" • Live Activity Feed:       🟢 CONNECTED & LISTENING (Sub-second latency)", flush=True)
+    print(" • Features:", flush=True)
+    print("   1. Live activity trail for every user across any computer / phone.", flush=True)
+    print("   2. Automatic creation & update of data/users/<username>/ in Finder.", flush=True)
+    print("=" * 80, flush=True)
+    print(" Waiting for live user activities on website (Press Ctrl+C to stop)...\n", flush=True)
 
     try:
         listen_live_stream(handle_incoming_cloud_event)
