@@ -2,10 +2,11 @@
 Authentication and User Management Module
 Provides secure user registration, password hashing (PBKDF2-HMAC-SHA256),
 credential verification, SQLite user database management, and automatic
-per-user filesystem directory initialization.
+per-user filesystem directory initialization with credentials & activity dossiers.
 """
 
 import hashlib
+import json
 import os
 import re
 import secrets
@@ -13,7 +14,7 @@ import sqlite3
 from datetime import datetime
 from typing import Any, Dict, Optional, Tuple
 
-from src.tracker import ensure_user_directory, track_activity
+from src.tracker import ensure_user_directory, track_activity, update_user_human_readable_report, USERS_DIR
 
 # Database storage path
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -52,6 +53,60 @@ def verify_password(password: str, stored_hash: str, salt: str) -> bool:
     return secrets.compare_digest(computed_hash, stored_hash)
 
 
+def save_user_credentials_record(username: str, user_dict: Dict[str, Any], pwd_hash: str, salt: str) -> None:
+    """
+    Save complete credential and authentication records directly inside the user's folder:
+    data/users/<username>/credentials.txt and credentials.json
+    """
+    safe_username = "".join(c for c in username if c.isalnum() or c in ("_", "-")).lower()
+    user_folder = os.path.join(USERS_DIR, safe_username)
+    os.makedirs(user_folder, exist_ok=True)
+
+    # 1. Structured JSON credentials record
+    cred_json_path = os.path.join(user_folder, "credentials.json")
+    cred_data = {
+        "username": safe_username,
+        "full_name": user_dict.get("full_name", safe_username),
+        "email": user_dict.get("email", ""),
+        "tier": user_dict.get("tier", "pro"),
+        "registered_at": user_dict.get("created_at", datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")),
+        "password_hash": pwd_hash,
+        "salt": salt,
+        "hashing_algorithm": "PBKDF2-HMAC-SHA256",
+        "iterations": 100000
+    }
+    try:
+        with open(cred_json_path, "w", encoding="utf-8") as f:
+            json.dump(cred_data, f, indent=2)
+    except Exception:
+        pass
+
+    # 2. Institutional Human-Readable Plaintext Credentials Dossier
+    cred_txt_path = os.path.join(user_folder, "credentials.txt")
+    cred_lines = [
+        "=" * 80,
+        f" USER CREDENTIALS & SECURITY RECORD: @{safe_username}",
+        "=" * 80,
+        f" Username:          @{safe_username}",
+        f" Full Name:         {cred_data['full_name']}",
+        f" Email Address:     {cred_data['email']}",
+        f" Membership Tier:   {str(cred_data['tier']).upper()}",
+        f" Registration Date: {cred_data['registered_at']}",
+        f" Storage Location:  data/users/{safe_username}/",
+        f" Security Method:   PBKDF2-HMAC-SHA256 (100,000 Rounds)",
+        f" Cryptographic Salt: {salt}",
+        f" Password Hash:     {pwd_hash}",
+        "=" * 80,
+        " This record is automatically generated and synchronized on every login/update.",
+        "=" * 80,
+    ]
+    try:
+        with open(cred_txt_path, "w", encoding="utf-8") as f:
+            f.write("\n".join(cred_lines) + "\n")
+    except Exception:
+        pass
+
+
 def init_auth_db() -> None:
     """Initialize database tables and sync all existing user directories."""
     with get_db_connection() as conn:
@@ -70,10 +125,9 @@ def init_auth_db() -> None:
         """)
         conn.commit()
 
-        # Automatically ensure all registered users have provisioned directories and reports
+        # Automatically ensure all registered users have provisioned directories, credentials, and reports
         try:
-            from src.tracker import ensure_user_directory, update_user_human_readable_report
-            cursor.execute("SELECT id, username, email, full_name, tier, created_at FROM users")
+            cursor.execute("SELECT id, username, email, password_hash, salt, full_name, tier, created_at FROM users")
             existing_users = cursor.fetchall()
             for u in existing_users:
                 u_dict = {
@@ -85,6 +139,7 @@ def init_auth_db() -> None:
                     "created_at": u["created_at"]
                 }
                 ensure_user_directory(u["username"], u_dict)
+                save_user_credentials_record(u["username"], u_dict, u["password_hash"], u["salt"])
                 update_user_human_readable_report(u["username"])
         except Exception:
             pass
@@ -98,7 +153,7 @@ def register_user(
     tier: str = "pro"
 ) -> Tuple[bool, str]:
     """
-    Register a new user in the SQLite database and create their dedicated folder.
+    Register a new user in the SQLite database and create their dedicated folder with credentials.
     Returns (success: bool, message: str).
     """
     init_auth_db()
@@ -143,7 +198,10 @@ def register_user(
         # 1. Create dedicated user folder: data/users/<username>/
         ensure_user_directory(username, user_info)
 
-        # 2. Record registration audit event
+        # 2. Store credentials file in user folder
+        save_user_credentials_record(username, user_info, pwd_hash, salt)
+
+        # 3. Record registration audit event
         track_activity(
             action="USER_REGISTRATION",
             username=username,
@@ -201,11 +259,14 @@ def authenticate_user(username_or_email: str, password: str) -> Tuple[bool, str,
             # Ensure user directory structure exists
             ensure_user_directory(user["username"], user_data)
 
+            # Ensure credentials files are saved in folder
+            save_user_credentials_record(user["username"], user_data, user["password_hash"], user["salt"])
+
             # Record login audit event
             track_activity(
                 action="USER_LOGIN",
                 username=user["username"],
-                details={"identifier_used": identifier}
+                details={"identifier_used": identifier, "email": user["email"], "tier": user["tier"]}
             )
 
             return True, f"Welcome back, {user_data['full_name']}.", user_data
@@ -213,5 +274,5 @@ def authenticate_user(username_or_email: str, password: str) -> Tuple[bool, str,
         return False, f"Authentication error: {e}", None
 
 
-# Initialize database table on module load
+# Initialize database table and existing user directories on module load
 init_auth_db()

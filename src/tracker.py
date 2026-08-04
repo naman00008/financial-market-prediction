@@ -94,7 +94,97 @@ def ensure_user_directory(username: str, user_data: Optional[Dict[str, Any]] = N
         except Exception:
             pass
 
+    # Ensure searched_stocks.txt exists
+    stocks_path = os.path.join(user_folder, "searched_stocks.txt")
+    if not os.path.exists(stocks_path):
+        try:
+            with open(stocks_path, "w", encoding="utf-8") as f:
+                f.write(f"# Stock Search & View History for @{safe_username}\n")
+        except Exception:
+            pass
+
+    # Ensure initial report exists
+    report_path = os.path.join(user_folder, "USER_PROFILE_&_ACTIVITY_REPORT.txt")
+    if not os.path.exists(report_path):
+        update_user_human_readable_report(safe_username)
+
     return user_folder
+
+
+def save_user_prediction(
+    username: str,
+    ticker: str,
+    model_name: str,
+    metrics: Dict[str, Any],
+    predictions_summary: Optional[Dict[str, Any]] = None
+) -> str:
+    """Save machine learning model results directly to data/users/<username>/saved_predictions/."""
+    safe_username = "".join(c for c in username if c.isalnum() or c in ("_", "-")).lower()
+    if not safe_username or safe_username == "guest":
+        return ""
+    
+    user_folder = ensure_user_directory(safe_username)
+    pred_folder = os.path.join(user_folder, "saved_predictions")
+    os.makedirs(pred_folder, exist_ok=True)
+    
+    ts_str = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+    clean_model = model_name.replace(" ", "_").replace("/", "_")
+    filename = f"{ticker}_{clean_model}_{ts_str}.json"
+    filepath = os.path.join(pred_folder, filename)
+    
+    payload = {
+        "timestamp": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC"),
+        "username": safe_username,
+        "ticker": ticker,
+        "model_name": model_name,
+        "metrics": metrics,
+        "predictions_summary": predictions_summary or {}
+    }
+    try:
+        with open(filepath, "w", encoding="utf-8") as f:
+            json.dump(payload, f, indent=2)
+    except Exception:
+        pass
+    
+    return filepath
+
+
+def save_user_portfolio(
+    username: str,
+    strategy_name: str,
+    tickers: List[str],
+    weights: Dict[str, float],
+    metrics: Dict[str, Any]
+) -> str:
+    """Save optimized portfolio allocations directly to data/users/<username>/portfolios/."""
+    safe_username = "".join(c for c in username if c.isalnum() or c in ("_", "-")).lower()
+    if not safe_username or safe_username == "guest":
+        return ""
+    
+    user_folder = ensure_user_directory(safe_username)
+    port_folder = os.path.join(user_folder, "portfolios")
+    os.makedirs(port_folder, exist_ok=True)
+    
+    ts_str = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+    clean_strategy = strategy_name.replace(" ", "_").replace("/", "_")
+    filename = f"{clean_strategy}_{ts_str}.json"
+    filepath = os.path.join(port_folder, filename)
+    
+    payload = {
+        "timestamp": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC"),
+        "username": safe_username,
+        "strategy_name": strategy_name,
+        "tickers": tickers,
+        "weights": weights,
+        "metrics": metrics
+    }
+    try:
+        with open(filepath, "w", encoding="utf-8") as f:
+            json.dump(payload, f, indent=2)
+    except Exception:
+        pass
+    
+    return filepath
 
 
 def update_user_human_readable_report(username: str) -> None:

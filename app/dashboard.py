@@ -875,9 +875,9 @@ def render_model_predictions(df: pd.DataFrame, ticker: str):
                     best_rmse = float(metrics_df.loc[best_model_name, 'rmse'])
                     best_acc = float(metrics_df.loc[best_model_name, 'directional_accuracy'])
                     try:
-                        from src.tracker import track_activity
+                        from src.tracker import track_activity, save_user_prediction
                     except Exception:
-                        from tracker import track_activity
+                        from tracker import track_activity, save_user_prediction
                     track_activity(
                         "TRAIN_ML_MODELS",
                         username=uname,
@@ -887,6 +887,12 @@ def render_model_predictions(df: pd.DataFrame, ticker: str):
                             "rmse": round(best_rmse, 4),
                             "directional_accuracy": f"{round(best_acc * 100, 1)}%"
                         }
+                    )
+                    save_user_prediction(
+                        username=uname,
+                        ticker=ticker,
+                        model_name=best_model_name,
+                        metrics={"rmse": round(best_rmse, 4), "directional_accuracy": f"{round(best_acc * 100, 1)}%"}
                     )
                 except Exception:
                     pass
