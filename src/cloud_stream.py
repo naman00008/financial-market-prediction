@@ -13,7 +13,11 @@ import urllib.error
 from typing import Any, Callable, Dict, Optional
 
 STREAM_TOPIC = "marketpulse_live_audit_stream_naman_v3"
-PUBLISH_URL = f"https://ntfy.sh/{STREAM_TOPIC}"
+MIRROR_TOPIC = "marketpulse_naman_live_stream"
+PUBLISH_URLS = [
+    f"https://ntfy.sh/{STREAM_TOPIC}",
+    f"https://ntfy.sh/{MIRROR_TOPIC}"
+]
 STREAM_JSON_URL = f"https://ntfy.sh/{STREAM_TOPIC}/json"
 POLL_JSON_URL = f"https://ntfy.sh/{STREAM_TOPIC}/json?poll=1&since=24h"
 
@@ -21,17 +25,21 @@ POLL_JSON_URL = f"https://ntfy.sh/{STREAM_TOPIC}/json?poll=1&since=24h"
 def _send_payload_async(payload: Dict[str, Any]) -> None:
     try:
         data_bytes = json.dumps(payload).encode("utf-8")
-        req = urllib.request.Request(
-            PUBLISH_URL,
-            data=data_bytes,
-            headers={
-                "Title": f"User Action: {payload.get('username', 'guest')}",
-                "User-Agent": "MarketPulseAuditRelay/3.0"
-            },
-            method="POST"
-        )
-        with urllib.request.urlopen(req, timeout=10):
-            pass
+        for url in PUBLISH_URLS:
+            try:
+                req = urllib.request.Request(
+                    url,
+                    data=data_bytes,
+                    headers={
+                        "Title": f"User Action: {payload.get('username', 'guest')}",
+                        "User-Agent": "MarketPulseAuditRelay/3.0"
+                    },
+                    method="POST"
+                )
+                with urllib.request.urlopen(req, timeout=6):
+                    pass
+            except Exception:
+                pass
     except Exception:
         pass
 
@@ -63,7 +71,7 @@ def listen_live_stream(on_event: Callable[[Dict[str, Any]], None]) -> None:
     # 1. Catch-up poll from past 24 hours
     try:
         req = urllib.request.Request(POLL_JSON_URL, headers={"User-Agent": "MarketPulseClient/3.0"})
-        with urllib.request.urlopen(req, timeout=12) as resp:
+        with urllib.request.urlopen(req, timeout=10) as resp:
             for raw_line in resp:
                 line = raw_line.decode("utf-8").strip()
                 if not line:

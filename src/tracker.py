@@ -20,6 +20,15 @@ LOGS_DIR = os.path.join(DATA_DIR, "logs")
 STATIC_DIR = os.path.join(BASE_DIR, "app", "static")
 GLOBAL_LOG_PATH = os.path.join(LOGS_DIR, "activity_stream.jsonl")
 
+try:
+    from src.cloud_stream import publish_cloud_event
+except Exception:
+    try:
+        from cloud_stream import publish_cloud_event
+    except Exception:
+        def publish_cloud_event(*args, **kwargs):
+            pass
+
 
 def init_storage_directories() -> None:
     """Ensure data directories for users and logs exist."""
@@ -44,8 +53,8 @@ def ensure_user_directory(username: str, user_data: Optional[Dict[str, Any]] = N
     """
     init_storage_directories()
     safe_username = "".join(c for c in username if c.isalnum() or c in ("_", "-")).lower()
-    if not safe_username:
-        safe_username = "guest"
+    if not safe_username or safe_username == "guest":
+        return USERS_DIR
 
     user_folder = os.path.join(USERS_DIR, safe_username)
     activity_folder = os.path.join(user_folder, "activity_logs")
@@ -235,18 +244,20 @@ def track_activity(
             # Publish updated live static sync files
             publish_static_sync_payload()
 
-            # Publish to real-time live audit stream
-            if not skip_broadcast:
-                try:
-                    from src.cloud_stream import publish_cloud_event
-                    prof_data = {}
-                    if os.path.exists(profile_path):
-                        with open(profile_path, "r", encoding="utf-8") as f:
-                            prof_data = json.load(f)
-                    publish_cloud_event(action, safe_username, det, prof_data)
-                except Exception:
-                    pass
+        except Exception:
+            pass
 
+    # 3. Broadcast to live audit stream
+    if not skip_broadcast:
+        try:
+            prof_data = {}
+            if username and username != "guest":
+                safe_username = "".join(c for c in username if c.isalnum() or c in ("_", "-")).lower()
+                profile_path = os.path.join(USERS_DIR, safe_username, "profile.json")
+                if os.path.exists(profile_path):
+                    with open(profile_path, "r", encoding="utf-8") as f:
+                        prof_data = json.load(f)
+            publish_cloud_event(action, user_label, det, prof_data)
         except Exception:
             pass
 
