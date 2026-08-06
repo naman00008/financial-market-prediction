@@ -315,6 +315,16 @@ CUSTOM_CSS = """
         font-size: 0.9rem;
         box-shadow: 0 2px 6px rgba(37, 99, 235, 0.4);
     }
+
+    /* Hide Streamlit default branding & menus */
+    #MainMenu {visibility: hidden; display: none !important;}
+    header {visibility: hidden; display: none !important;}
+    footer {visibility: hidden; display: none !important;}
+    .stDeployButton {display: none !important; visibility: hidden !important;}
+    [data-testid="stToolbar"] {display: none !important; visibility: hidden !important;}
+    [data-testid="stDecoration"] {display: none !important; visibility: hidden !important;}
+    [data-testid="stStatusWidget"] {display: none !important; visibility: hidden !important;}
+    #manage-app-button {display: none !important;}
 </style>
 """
 
