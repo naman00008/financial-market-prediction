@@ -337,6 +337,16 @@ def render_nifty_index():
                 template="plotly_white",
             )
             st.plotly_chart(fig, width='stretch')
+            try:
+                curr_user = st.session_state.get("user") or {}
+                uname = curr_user.get("username") if isinstance(curr_user, dict) and curr_user.get("username") else "guest"
+                try:
+                    from src.tracker import track_activity
+                except Exception:
+                    from tracker import track_activity
+                track_activity("VIEW_NIFTY_BENCHMARK", username=uname, details={"records_loaded": len(nifty)})
+            except Exception:
+                pass
         except Exception as e:
             st.warning(f"Unable to load NIFTY index data: {e}")
 
@@ -1812,6 +1822,18 @@ def main():
         # Show number of results
         if search_term:
             st.sidebar.markdown(f"Found {len(filtered_tickers)} companies")
+            if st.session_state.get("_last_searched_term") != search_term:
+                st.session_state["_last_searched_term"] = search_term
+                try:
+                    curr_user = st.session_state.get("user") or {}
+                    uname = curr_user.get("username") if isinstance(curr_user, dict) and curr_user.get("username") else "guest"
+                    try:
+                        from src.tracker import track_activity
+                    except Exception:
+                        from tracker import track_activity
+                    track_activity("SEARCH_COMPANIES", username=uname, details={"query": search_term, "matched_count": len(filtered_tickers)})
+                except Exception:
+                    pass
 
         # Select company from filtered list
         if filtered_tickers:

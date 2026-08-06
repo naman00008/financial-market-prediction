@@ -318,6 +318,29 @@ def render_unified_analysis_section(ticker: str, df: pd.DataFrame, all_tickers: 
     
     fig = build_unified_technical_chart(df, ticker, selected_indicators, chart_type)
     chart_placeholder.plotly_chart(fig, width='stretch', key=f"unified_chart_{ticker}")
+
+    # Record telemetry for indicator/chart changes
+    try:
+        prev_ind_key = f"_last_ind_{ticker}"
+        if st.session_state.get(prev_ind_key) != selected_indicators:
+            st.session_state[prev_ind_key] = list(selected_indicators)
+            curr_user = st.session_state.get("user") or {}
+            uname = curr_user.get("username") if isinstance(curr_user, dict) and curr_user.get("username") else "guest"
+            try:
+                from src.tracker import track_activity
+            except Exception:
+                from tracker import track_activity
+            track_activity(
+                "CHART_INDICATORS_UPDATED",
+                username=uname,
+                details={
+                    "ticker": ticker,
+                    "chart_type": chart_type,
+                    "active_indicators": selected_indicators
+                }
+            )
+    except Exception:
+        pass
     
     st.markdown("---")
     
