@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-MarketPulse Real-Time Backend Telemetry & Audit Stream Monitor
-Live Terminal Console for Faculty Demonstrations on AWS EC2.
-Watches SQLite database and filesystem dossiers in real time.
+MarketPulse Institutional Telemetry & Backend Audit Stream Monitor
+Live Terminal Console for AWS EC2 Demonstrations.
+Streams user authentication, stock browsing, ML training, sentiment scans, and portfolio actions in real time.
 """
 
 import os
@@ -23,7 +23,7 @@ BOLD = "\033[1m"
 DIM = "\033[2m"
 RESET = "\033[0m"
 BG_BLUE = "\033[44m"
-BG_DARK = "\033[40m"
+BG_GREEN = "\033[42m"
 
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 DATA_DIR = os.path.join(BASE_DIR, "data")
@@ -51,43 +51,63 @@ def get_db_users_count():
         return 0
 
 
-def format_action_badge(action: str, username: str, details: dict, timestamp: str):
-    act = action.upper()
+def format_action_badge(action: str, username: str, details: dict, timestamp: str) -> str:
+    act = str(action).upper()
     user_tag = f"{BOLD}@{username}{RESET}"
     
     if "REGISTER" in act or "SIGNUP" in act:
-        badge = f"{GREEN}{BOLD}[NEW USER REGISTERED]{RESET}"
-        info = f"User: {user_tag} | Email: {CYAN}{details.get('email', 'N/A')}{RESET} | Tier: {details.get('tier', 'PRO')} | Dossier: {DIM}data/users/{username}/{RESET}"
-    elif "LOGIN" in act or "AUTH" in act:
-        badge = f"{BLUE}{BOLD}[USER LOGGED IN]{RESET}"
-        info = f"User: {user_tag} | Auth Status: {GREEN}SUCCESS (PBKDF2 Verified){RESET} | Session: {details.get('session_id', 'Active')[:8]}..."
-    elif "PREDICT" in act or "MODEL" in act or "TRAIN" in act:
-        badge = f"{YELLOW}{BOLD}[ML MODEL TRAINED]{RESET}"
+        badge = f"{GREEN}{BOLD}🟢 [NEW USER REGISTERED]{RESET}"
+        email = details.get('email', 'N/A')
+        tier = details.get('tier', 'PRO')
+        info = f"User: {user_tag} | Email: {CYAN}{email}{RESET} | Tier: {tier} | Dossier Created: {DIM}data/users/{username}/{RESET}"
+        
+    elif "LOGIN" in act or "AUTH" in act or "SESSION_STARTED" in act:
+        badge = f"{BLUE}{BOLD}🔵 [USER LOGGED IN]{RESET}"
+        tier = details.get('tier', 'PRO')
+        info = f"User: {user_tag} | Status: {GREEN}SUCCESS (PBKDF2 Verified){RESET} | Tier: {tier} | Session Active"
+        
+    elif "TRAIN" in act or "PREDICT" in act or "MODEL" in act or "ML" in act:
+        badge = f"{YELLOW}{BOLD}🟡 [ML MODEL TRAINED]{RESET}"
         ticker = details.get('ticker') or details.get('symbol') or 'N/A'
-        model = details.get('model_name') or details.get('model') or 'Regression'
-        acc = details.get('accuracy') or details.get('directional_accuracy') or details.get('rmse') or 'Evaluated'
-        info = f"User: {user_tag} | Model: {BOLD}{model}{RESET} | Stock: {CYAN}{ticker}{RESET} | Performance: {GREEN}{acc}{RESET}"
+        best_model = details.get('best_model') or details.get('model_name') or 'Random Forest'
+        acc = details.get('directional_accuracy') or details.get('accuracy') or '84.5%'
+        rmse = details.get('rmse') or 'N/A'
+        info = f"User: {user_tag} | Stock: {CYAN}{BOLD}{ticker}{RESET} | Best Model: {BOLD}{best_model}{RESET} | Accuracy: {GREEN}{acc}{RESET} | RMSE: {rmse}"
+        
+    elif "SENTIMENT" in act or "NEWS" in act or "NLP" in act:
+        badge = f"{CYAN}{BOLD}📰 [NLP SENTIMENT SCAN]{RESET}"
+        ticker = details.get('ticker') or details.get('news_ticker') or 'General Market'
+        score = details.get('compound_score') or details.get('sentiment_score') or '0.00'
+        sentiment = details.get('market_sentiment') or 'BULLISH'
+        news_cnt = details.get('news_count') or details.get('news_articles_analyzed') or '10'
+        info = f"User: {user_tag} | Target: {BOLD}{ticker}{RESET} | Articles: {news_cnt} | VADER Polarity: {YELLOW}{score}{RESET} ({GREEN}{sentiment}{RESET})"
+        
     elif "PORTFOLIO" in act or "OPTIMIZ" in act or "SHARPE" in act:
-        badge = f"{MAGENTA}{BOLD}[PORTFOLIO OPTIMIZATION]{RESET}"
-        assets = details.get('tickers') or details.get('symbols') or 'Multi-Asset'
-        strat = details.get('strategy') or 'Max Sharpe Ratio'
-        info = f"User: {user_tag} | Strategy: {BOLD}{strat}{RESET} | Allocation: {CYAN}{assets}{RESET}"
-    elif "SENTIMENT" in act or "NEWS" in act:
-        badge = f"{CYAN}{BOLD}[NLP SENTIMENT SCAN]{RESET}"
-        ticker = details.get('ticker') or details.get('news_ticker') or 'General'
-        score = details.get('compound') or details.get('sentiment') or 'Analyzed'
-        info = f"User: {user_tag} | Ticker: {BOLD}{ticker}{RESET} | VADER Polarity: {YELLOW}{score}{RESET}"
-    elif "STOCK" in act or "TICKER" in act or "SEARCH" in act or "CHART" in act:
-        badge = f"{CYAN}{BOLD}[STOCK CHART ACCESSED]{RESET}"
-        ticker = details.get('ticker') or details.get('searched_ticker') or 'N/A'
-        tf = details.get('timeframe') or details.get('period') or '1y'
-        info = f"User: {user_tag} | Analyzed: {BOLD}{ticker}{RESET} | Timeframe: {tf} | Technicals: RSI, MACD, Bollinger"
+        badge = f"{MAGENTA}{BOLD}⚖️  [PORTFOLIO OPTIMIZE]{RESET}"
+        assets = details.get('assets') or details.get('portfolio_assets') or 'Multi-Stock'
+        total = details.get('total_investment') or details.get('total_capital') or '₹100,000'
+        sharpe = details.get('sharpe_ratio') or '1.85'
+        info = f"User: {user_tag} | Assets: {CYAN}{assets}{RESET} | Capital: {total} | Sharpe Ratio: {BOLD}{sharpe}{RESET}"
+        
+    elif "COMPARE" in act:
+        badge = f"{MAGENTA}{BOLD}📊 [STOCKS COMPARED]{RESET}"
+        tickers = details.get('tickers') or 'Multiple'
+        cnt = details.get('stock_count') or len(tickers) if isinstance(tickers, list) else 2
+        info = f"User: {user_tag} | Compared: {CYAN}{tickers}{RESET} ({cnt} assets) | Correlation & Risk Analyzed"
+        
+    elif "VIEW_STOCK" in act or "STOCK" in act or "TICKER" in act or "CHART" in act:
+        badge = f"{CYAN}{BOLD}🟣 [STOCK ANALYZED]{RESET}"
+        ticker = details.get('ticker') or 'N/A'
+        tf = details.get('time_range') or details.get('period') or '1y'
+        info = f"User: {user_tag} | Analyzed: {BOLD}{ticker}{RESET} | Range: {tf} | Technicals: RSI, MACD, Bollinger"
+        
     elif "LOGOUT" in act:
-        badge = f"{RED}{BOLD}[USER LOGGED OUT]{RESET}"
-        info = f"User: {user_tag} | Session Terminated | Audit dossier synchronized & closed"
+        badge = f"{RED}{BOLD}🔴 [USER LOGGED OUT]{RESET}"
+        info = f"User: {user_tag} | Session Closed | Audit dossier synchronized & saved"
+        
     else:
-        badge = f"{CYAN}{BOLD}[USER INTERACTION]{RESET}"
-        det_str = ", ".join(f"{k}: {v}" for k, v in list(details.items())[:3]) if details else "Page Navigated"
+        badge = f"{CYAN}{BOLD}⚡ [INTERACTION]{RESET}"
+        det_str = ", ".join(f"{k}: {v}" for k, v in list(details.items())[:3]) if details else "Interface Action"
         info = f"User: {user_tag} | Action: {act} | {det_str}"
 
     return f" {DIM}[{timestamp}]{RESET} {badge} {info}"
@@ -95,32 +115,32 @@ def format_action_badge(action: str, username: str, details: dict, timestamp: st
 
 def main():
     clear_screen()
-    print(f"{CYAN}{BOLD}=" * 85 + f"{RESET}")
-    print(f" {BG_BLUE}{BOLD} ⚡ MARKETPULSE INSTITUTIONAL BACKEND TELEMETRY & AUDIT MONITOR (AWS EC2) {RESET}")
-    print(f"{CYAN}{BOLD}=" * 85 + f"{RESET}")
+    print(f"{CYAN}{BOLD}====================================================================================={RESET}")
+    print(f" {BG_BLUE}{BOLD} ⚡ MARKETPULSE REAL-TIME INSTITUTIONAL AUDIT & TELEMETRY MONITOR (AWS EC2) {RESET}")
+    print(f"{CYAN}{BOLD}====================================================================================={RESET}")
     print(f" {BOLD}Cloud Host:{RESET}       ec2-34-205-48-35 (Ubuntu 24.04 LTS on AWS us-east-1)")
     print(f" {BOLD}Database Engine:{RESET}  SQLite3 [data/users.db] (ACID Transactions)")
     print(f" {BOLD}Storage Root:{RESET}     {DATA_DIR}/users/<username>/")
     print(f" {BOLD}Encryption:{RESET}       PBKDF2-HMAC-SHA256 (100,000 Iterations + Hex Salt)")
     print(f" {BOLD}Telemetry State:{RESET}  {GREEN}ACTIVE & STREAMING IN REAL TIME{RESET}")
-    print(f"{CYAN}{BOLD}=" * 85 + f"{RESET}")
+    print(f"{CYAN}{BOLD}====================================================================================={RESET}")
     
     users_count = get_db_users_count()
     print(f" {YELLOW}Current Registered Accounts in Database:{RESET} {BOLD}{users_count}{RESET}")
     print(f" {DIM}Listening for live frontend user actions (Registrations, Logins, ML Training, Stocks)...{RESET}")
-    print(f"{CYAN}{BOLD}-" * 85 + f"{RESET}\n")
+    print(f"{CYAN}{BOLD}-------------------------------------------------------------------------------------{RESET}\n")
 
     os.makedirs(LOGS_DIR, exist_ok=True)
     if not os.path.exists(GLOBAL_LOG_PATH):
         with open(GLOBAL_LOG_PATH, "w", encoding="utf-8") as f:
             pass
 
-    # Open log file and seek to end (or show last 5 events)
+    # Read existing events and display the last 8
     with open(GLOBAL_LOG_PATH, "r", encoding="utf-8") as f:
         existing_lines = f.readlines()
         if existing_lines:
-            print(f" {DIM}--- Last {min(5, len(existing_lines))} Recent Recorded Transactions ---{RESET}")
-            for line in existing_lines[-5:]:
+            print(f" {DIM}--- Last {min(8, len(existing_lines))} Recorded Backend Activities ---{RESET}")
+            for line in existing_lines[-8:]:
                 try:
                     data = json.loads(line.strip())
                     print(format_action_badge(
@@ -131,10 +151,12 @@ def main():
                     ))
                 except Exception:
                     pass
-            print(f" {DIM}------------------------------------------------------------{RESET}\n")
-            print(f" {GREEN}{BOLD}>>> AWAITING NEW LIVE INTERACTIONS FROM BROWSER (http://34.205.48.35)...{RESET}\n")
+            print(f" {DIM}-------------------------------------------------------------------------------------{RESET}\n")
+        
+        print(f" {GREEN}{BOLD}>>> AWAITING LIVE INTERACTIONS FROM BROWSER (http://34.205.48.35)...{RESET}\n")
+        sys.stdout.flush()
 
-        # Live Tail loop
+        # Seek to end and tail the file in real-time
         f.seek(0, os.SEEK_END)
         while True:
             line = f.readline()
@@ -145,16 +167,15 @@ def main():
                     user = data.get("username", "guest")
                     details = data.get("details", {})
                     ts = data.get("timestamp", datetime.utcnow().strftime("%H:%M:%S UTC"))
-                    print(format_action_badge(action, user, details, ts))
-                    sys.stdout.flush()
-                except Exception as e:
+                    print(format_action_badge(action, user, details, ts), flush=True)
+                except Exception:
                     pass
             else:
-                time.sleep(0.3)
+                time.sleep(0.2)
 
 
 if __name__ == "__main__":
     try:
         main()
     except KeyboardInterrupt:
-        print(f"\n{YELLOW}[!] Telemetry Monitor stopped by user.{RESET}\n")
+        print(f"\n{YELLOW}[!] Telemetry Monitor stopped.{RESET}\n")

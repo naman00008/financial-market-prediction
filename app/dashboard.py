@@ -518,6 +518,29 @@ def render_news_sentiment(selected_company: str, tickers: List[str]):
     sentiment_df['published_at'] = pd.to_datetime(sentiment_df['published_at'], errors='coerce')
     sentiment_df = sentiment_df.sort_values("published_at", ascending=False)
 
+    # Record telemetry for news sentiment analysis
+    try:
+        curr_user = st.session_state.get("user") or {}
+        uname = curr_user.get("username") if isinstance(curr_user, dict) and curr_user.get("username") else "guest"
+        avg_score = float(sentiment_df["sentiment_compound"].mean()) if "sentiment_compound" in sentiment_df.columns else 0.0
+        sentiment_label = "BULLISH" if avg_score > 0.05 else ("BEARISH" if avg_score < -0.05 else "NEUTRAL")
+        try:
+            from src.tracker import track_activity
+        except Exception:
+            from tracker import track_activity
+        track_activity(
+            "NLP_SENTIMENT_ANALYSIS",
+            username=uname,
+            details={
+                "ticker": selected_company,
+                "news_count": len(sentiment_df),
+                "compound_score": round(avg_score, 3),
+                "market_sentiment": sentiment_label
+            }
+        )
+    except Exception:
+        pass
+
     # News filter options
     st.markdown("---")
     col1, col2, col3, col4 = st.columns([2, 1, 1, 1])
@@ -869,9 +892,9 @@ def render_model_predictions(df: pd.DataFrame, ticker: str):
 
                 # Record live telemetry for model training
                 try:
-                    curr_user = st.session_state.get("user", {})
-                    uname = curr_user.get("username") if curr_user else "guest"
-                    best_model_name = metrics_df['rmse'].idxmin()
+                    curr_user = st.session_state.get("user") or {}
+                    uname = curr_user.get("username") if isinstance(curr_user, dict) and curr_user.get("username") else "guest"
+                    best_model_name = str(metrics_df['rmse'].idxmin())
                     best_rmse = float(metrics_df.loc[best_model_name, 'rmse'])
                     best_acc = float(metrics_df.loc[best_model_name, 'directional_accuracy'])
                     try:
@@ -883,6 +906,7 @@ def render_model_predictions(df: pd.DataFrame, ticker: str):
                         username=uname,
                         details={
                             "ticker": ticker,
+                            "models_trained": list(metrics_df.index),
                             "best_model": best_model_name,
                             "rmse": round(best_rmse, 4),
                             "directional_accuracy": f"{round(best_acc * 100, 1)}%"
@@ -1159,6 +1183,25 @@ def render_stock_comparison(all_tickers: List[str]):
     if len(combined) > num_stocks:
         st.warning(f"You selected {len(combined)} stocks but the comparison limit is {num_stocks}. Truncating to first {num_stocks}.")
         combined = combined[:num_stocks]
+
+    # Record telemetry for multi-stock comparison
+    try:
+        curr_user = st.session_state.get("user") or {}
+        uname = curr_user.get("username") if isinstance(curr_user, dict) and curr_user.get("username") else "guest"
+        try:
+            from src.tracker import track_activity
+        except Exception:
+            from tracker import track_activity
+        track_activity(
+            "COMPARE_STOCKS",
+            username=uname,
+            details={
+                "tickers": combined,
+                "stock_count": len(combined)
+            }
+        )
+    except Exception:
+        pass
 
     selected_stocks = combined
 
@@ -1632,6 +1675,27 @@ def render_portfolio_management(all_tickers: List[str]):
                 )
                 st.plotly_chart(fig, width='stretch')
 
+                # Record telemetry for portfolio analysis
+                try:
+                    curr_user = st.session_state.get("user") or {}
+                    uname = curr_user.get("username") if isinstance(curr_user, dict) and curr_user.get("username") else "guest"
+                    try:
+                        from src.tracker import track_activity, save_user_portfolio
+                    except Exception:
+                        from tracker import track_activity, save_user_portfolio
+                    track_activity(
+                        "PORTFOLIO_OPTIMIZATION",
+                        username=uname,
+                        details={
+                            "strategy": "Custom Multi-Asset Allocation",
+                            "assets": list(portfolio_data.keys()),
+                            "total_investment": f"₹{total_investment:,}",
+                            "sharpe_ratio": round(float(sharpe_ratio), 2) if 'sharpe_ratio' in locals() else "N/A"
+                        }
+                    )
+                except Exception:
+                    pass
+
         else:
             st.warning("No data available for portfolio analysis.")
     else:
@@ -1843,6 +1907,8 @@ def main():
             return
 
         # Track stock viewing when ticker or period changes
+        curr_user = st.session_state.get("user") or {}
+        active_username = curr_user.get("username") if isinstance(curr_user, dict) and curr_user.get("username") else "guest"
         if st.session_state.get("last_tracked_ticker") != ticker or st.session_state.get("last_tracked_period") != period:
             st.session_state["last_tracked_ticker"] = ticker
             st.session_state["last_tracked_period"] = period
