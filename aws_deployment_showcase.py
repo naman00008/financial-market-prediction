@@ -131,18 +131,10 @@ def main():
     print_header("6. OVERALL CLOUD DEPLOYMENT STATUS", "🚀")
     print(f"  {GREEN}{BOLD}✔ ALL SERVICES OPERATIONAL AND RUNNING CONTINUOUSLY 24/7 ON AWS EC2.{RESET}")
     print(f"  • {BOLD}Live Web URL:{RESET}            {CYAN}{BOLD}http://{public_ip}{RESET}")
-    print(f"  • {BOLD}Live Telemetry Mode:{RESET}     {GREEN}Active & Streaming 100% of website actions{RESET}")
+    print(f"  • {BOLD}Application Status:{RESET}      {GREEN}RUNNING (Port 8501 via Nginx Reverse Proxy Port 80){RESET}")
+    print(f"  • {BOLD}Database State:{RESET}          {GREEN}ACTIVE ({users_count} user accounts registered){RESET}")
     print(f"{CYAN}{BOLD}{'═' * 80}{RESET}\n")
-
-    print(f" {YELLOW}{BOLD}⚡ Launching Live Real-Time Backend Activity Stream in 2 seconds...{RESET}")
-    time.sleep(2)
-    
-    # Seamlessly launch live backend monitor
-    try:
-        from live_backend_monitor import main as run_live_monitor
-        run_live_monitor()
-    except Exception:
-        os.system("python3 live_backend_monitor.py")
+    print(f" {DIM}Tip: To view real-time live telemetry, run: python3 live_backend_monitor.py{RESET}\n")
 
 
 if __name__ == "__main__":
