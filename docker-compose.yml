@@ -1,0 +1,13 @@
+version: '3.8'
+
+services:
+  marketpulse:
+    build: .
+    container_name: marketpulse_app
+    restart: always
+    ports:
+      - "8501:8501"
+    environment:
+      - PORT=8501
+    volumes:
+      - ./data:/app/data
