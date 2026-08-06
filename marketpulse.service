@@ -1,0 +1,17 @@
+[Unit]
+Description=MarketPulse Financial Analytics & ML Server
+After=network.target
+
+[Service]
+User=ubuntu
+WorkingDirectory=/home/ubuntu/financial-market-prediction
+ExecStart=/home/ubuntu/financial-market-prediction/venv/bin/python server.py
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+Environment=PYTHONUNBUFFERED=1
+Environment=PORT=8501
+
+[Install]
+WantedBy=multi-user.target
