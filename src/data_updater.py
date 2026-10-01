@@ -92,18 +92,18 @@ class StockDataUpdater:
 
                     combined_df.to_csv(filepath, index=False)
                     results[ticker] = f"Updated {len(df)} days of data"
-                    print(f"✅ {ticker}: Updated successfully")
+                    print(f"OK {ticker}: Updated successfully")
 
                 else:
                     results[ticker] = "No data available"
-                    print(f"❌ {ticker}: No data available")
+                    print(f"WARN {ticker}: No data available")
 
                 # Rate limiting to avoid being blocked
                 time.sleep(1)
 
             except Exception as e:
                 results[ticker] = f"Error: {str(e)}"
-                print(f"❌ {ticker}: Error - {str(e)}")
+                print(f"ERROR {ticker}: Error - {str(e)}")
 
         return results
 

@@ -1,0 +1,443 @@
+{
+  "dataset_name": "NSE Top Equities 5-Year Daily OHLCV Collection",
+  "acquisition_date": "2026-10-01",
+  "data_source": "Yahoo Finance (via yfinance)",
+  "frequency": "Daily",
+  "total_stocks_acquired": 45,
+  "excluded_stocks": {
+    "MM": "Yahoo Finance returned empty data for MM.NS symbol",
+    "TATAMOTORS": "Yahoo Finance returned empty data for TATAMOTORS.NS symbol"
+  },
+  "date_range": {
+    "start_date": "2021-10-04",
+    "end_date": "2026-10-01"
+  },
+  "row_counts": {
+    "total_raw_rows": 55800,
+    "total_prepared_rows": 55755,
+    "dropped_final_rows": 45
+  },
+  "target_distribution": {
+    "target_definition": "1 if Close(t+1) > Close(t) else 0",
+    "total_up_count": 28259,
+    "total_down_count": 27496,
+    "overall_up_percentage": 50.68,
+    "overall_down_percentage": 49.32
+  },
+  "quality_audit": {
+    "missing_ohclv": 0,
+    "duplicate_dates": 0,
+    "invalid_dates": 0,
+    "negative_or_zero_prices": 0,
+    "high_less_than_low": 0,
+    "high_less_than_close": 0,
+    "low_greater_than_close": 0
+  },
+  "stocks": {
+    "ADANIPORTS": {
+      "raw_rows": 1240,
+      "prepared_rows": 1239,
+      "min_date": "2021-10-04",
+      "max_date": "2026-10-01",
+      "up_labels": 634,
+      "down_labels": 605,
+      "up_percentage": 51.17
+    },
+    "ASIANPAINT": {
+      "raw_rows": 1240,
+      "prepared_rows": 1239,
+      "min_date": "2021-10-04",
+      "max_date": "2026-10-01",
+      "up_labels": 625,
+      "down_labels": 614,
+      "up_percentage": 50.44
+    },
+    "AXISBANK": {
+      "raw_rows": 1240,
+      "prepared_rows": 1239,
+      "min_date": "2021-10-04",
+      "max_date": "2026-10-01",
+      "up_labels": 632,
+      "down_labels": 607,
+      "up_percentage": 51.01
+    },
+    "BAJAJ-AUTO": {
+      "raw_rows": 1240,
+      "prepared_rows": 1239,
+      "min_date": "2021-10-04",
+      "max_date": "2026-10-01",
+      "up_labels": 657,
+      "down_labels": 582,
+      "up_percentage": 53.03
+    },
+    "BAJAJFINSV": {
+      "raw_rows": 1240,
+      "prepared_rows": 1239,
+      "min_date": "2021-10-04",
+      "max_date": "2026-10-01",
+      "up_labels": 615,
+      "down_labels": 624,
+      "up_percentage": 49.64
+    },
+    "BAJFINANCE": {
+      "raw_rows": 1240,
+      "prepared_rows": 1239,
+      "min_date": "2021-10-04",
+      "max_date": "2026-10-01",
+      "up_labels": 628,
+      "down_labels": 611,
+      "up_percentage": 50.69
+    },
+    "BHARTIARTL": {
+      "raw_rows": 1240,
+      "prepared_rows": 1239,
+      "min_date": "2021-10-04",
+      "max_date": "2026-10-01",
+      "up_labels": 637,
+      "down_labels": 602,
+      "up_percentage": 51.41
+    },
+    "BPCL": {
+      "raw_rows": 1240,
+      "prepared_rows": 1239,
+      "min_date": "2021-10-04",
+      "max_date": "2026-10-01",
+      "up_labels": 615,
+      "down_labels": 624,
+      "up_percentage": 49.64
+    },
+    "BRITANNIA": {
+      "raw_rows": 1240,
+      "prepared_rows": 1239,
+      "min_date": "2021-10-04",
+      "max_date": "2026-10-01",
+      "up_labels": 641,
+      "down_labels": 598,
+      "up_percentage": 51.74
+    },
+    "CIPLA": {
+      "raw_rows": 1240,
+      "prepared_rows": 1239,
+      "min_date": "2021-10-04",
+      "max_date": "2026-10-01",
+      "up_labels": 615,
+      "down_labels": 624,
+      "up_percentage": 49.64
+    },
+    "COALINDIA": {
+      "raw_rows": 1240,
+      "prepared_rows": 1239,
+      "min_date": "2021-10-04",
+      "max_date": "2026-10-01",
+      "up_labels": 646,
+      "down_labels": 593,
+      "up_percentage": 52.14
+    },
+    "DRREDDY": {
+      "raw_rows": 1240,
+      "prepared_rows": 1239,
+      "min_date": "2021-10-04",
+      "max_date": "2026-10-01",
+      "up_labels": 629,
+      "down_labels": 610,
+      "up_percentage": 50.77
+    },
+    "EICHERMOT": {
+      "raw_rows": 1240,
+      "prepared_rows": 1239,
+      "min_date": "2021-10-04",
+      "max_date": "2026-10-01",
+      "up_labels": 613,
+      "down_labels": 626,
+      "up_percentage": 49.48
+    },
+    "GAIL": {
+      "raw_rows": 1240,
+      "prepared_rows": 1239,
+      "min_date": "2021-10-04",
+      "max_date": "2026-10-01",
+      "up_labels": 628,
+      "down_labels": 611,
+      "up_percentage": 50.69
+    },
+    "GRASIM": {
+      "raw_rows": 1240,
+      "prepared_rows": 1239,
+      "min_date": "2021-10-04",
+      "max_date": "2026-10-01",
+      "up_labels": 641,
+      "down_labels": 598,
+      "up_percentage": 51.74
+    },
+    "HCLTECH": {
+      "raw_rows": 1240,
+      "prepared_rows": 1239,
+      "min_date": "2021-10-04",
+      "max_date": "2026-10-01",
+      "up_labels": 619,
+      "down_labels": 620,
+      "up_percentage": 49.96
+    },
+    "HEROMOTOCO": {
+      "raw_rows": 1240,
+      "prepared_rows": 1239,
+      "min_date": "2021-10-04",
+      "max_date": "2026-10-01",
+      "up_labels": 646,
+      "down_labels": 593,
+      "up_percentage": 52.14
+    },
+    "HINDALCO": {
+      "raw_rows": 1240,
+      "prepared_rows": 1239,
+      "min_date": "2021-10-04",
+      "max_date": "2026-10-01",
+      "up_labels": 665,
+      "down_labels": 574,
+      "up_percentage": 53.67
+    },
+    "HINDUNILVR": {
+      "raw_rows": 1240,
+      "prepared_rows": 1239,
+      "min_date": "2021-10-04",
+      "max_date": "2026-10-01",
+      "up_labels": 591,
+      "down_labels": 648,
+      "up_percentage": 47.7
+    },
+    "ICICIBANK": {
+      "raw_rows": 1240,
+      "prepared_rows": 1239,
+      "min_date": "2021-10-04",
+      "max_date": "2026-10-01",
+      "up_labels": 636,
+      "down_labels": 603,
+      "up_percentage": 51.33
+    },
+    "INDUSINDBK": {
+      "raw_rows": 1240,
+      "prepared_rows": 1239,
+      "min_date": "2021-10-04",
+      "max_date": "2026-10-01",
+      "up_labels": 627,
+      "down_labels": 612,
+      "up_percentage": 50.61
+    },
+    "INFY": {
+      "raw_rows": 1240,
+      "prepared_rows": 1239,
+      "min_date": "2021-10-04",
+      "max_date": "2026-10-01",
+      "up_labels": 607,
+      "down_labels": 632,
+      "up_percentage": 48.99
+    },
+    "IOC": {
+      "raw_rows": 1240,
+      "prepared_rows": 1239,
+      "min_date": "2021-10-04",
+      "max_date": "2026-10-01",
+      "up_labels": 641,
+      "down_labels": 598,
+      "up_percentage": 51.74
+    },
+    "ITC": {
+      "raw_rows": 1240,
+      "prepared_rows": 1239,
+      "min_date": "2021-10-04",
+      "max_date": "2026-10-01",
+      "up_labels": 618,
+      "down_labels": 621,
+      "up_percentage": 49.88
+    },
+    "JSWSTEEL": {
+      "raw_rows": 1240,
+      "prepared_rows": 1239,
+      "min_date": "2021-10-04",
+      "max_date": "2026-10-01",
+      "up_labels": 630,
+      "down_labels": 609,
+      "up_percentage": 50.85
+    },
+    "KOTAKBANK": {
+      "raw_rows": 1240,
+      "prepared_rows": 1239,
+      "min_date": "2021-10-04",
+      "max_date": "2026-10-01",
+      "up_labels": 620,
+      "down_labels": 619,
+      "up_percentage": 50.04
+    },
+    "LT": {
+      "raw_rows": 1240,
+      "prepared_rows": 1239,
+      "min_date": "2021-10-04",
+      "max_date": "2026-10-01",
+      "up_labels": 634,
+      "down_labels": 605,
+      "up_percentage": 51.17
+    },
+    "MARUTI": {
+      "raw_rows": 1240,
+      "prepared_rows": 1239,
+      "min_date": "2021-10-04",
+      "max_date": "2026-10-01",
+      "up_labels": 618,
+      "down_labels": 621,
+      "up_percentage": 49.88
+    },
+    "NESTLEIND": {
+      "raw_rows": 1240,
+      "prepared_rows": 1239,
+      "min_date": "2021-10-04",
+      "max_date": "2026-10-01",
+      "up_labels": 620,
+      "down_labels": 619,
+      "up_percentage": 50.04
+    },
+    "NTPC": {
+      "raw_rows": 1240,
+      "prepared_rows": 1239,
+      "min_date": "2021-10-04",
+      "max_date": "2026-10-01",
+      "up_labels": 636,
+      "down_labels": 603,
+      "up_percentage": 51.33
+    },
+    "ONGC": {
+      "raw_rows": 1240,
+      "prepared_rows": 1239,
+      "min_date": "2021-10-04",
+      "max_date": "2026-10-01",
+      "up_labels": 634,
+      "down_labels": 605,
+      "up_percentage": 51.17
+    },
+    "POWERGRID": {
+      "raw_rows": 1240,
+      "prepared_rows": 1239,
+      "min_date": "2021-10-04",
+      "max_date": "2026-10-01",
+      "up_labels": 628,
+      "down_labels": 611,
+      "up_percentage": 50.69
+    },
+    "RELIANCE": {
+      "raw_rows": 1240,
+      "prepared_rows": 1239,
+      "min_date": "2021-10-04",
+      "max_date": "2026-10-01",
+      "up_labels": 626,
+      "down_labels": 613,
+      "up_percentage": 50.52
+    },
+    "SBIN": {
+      "raw_rows": 1240,
+      "prepared_rows": 1239,
+      "min_date": "2021-10-04",
+      "max_date": "2026-10-01",
+      "up_labels": 660,
+      "down_labels": 579,
+      "up_percentage": 53.27
+    },
+    "SHREECEM": {
+      "raw_rows": 1240,
+      "prepared_rows": 1239,
+      "min_date": "2021-10-04",
+      "max_date": "2026-10-01",
+      "up_labels": 610,
+      "down_labels": 629,
+      "up_percentage": 49.23
+    },
+    "SUNPHARMA": {
+      "raw_rows": 1240,
+      "prepared_rows": 1239,
+      "min_date": "2021-10-04",
+      "max_date": "2026-10-01",
+      "up_labels": 644,
+      "down_labels": 595,
+      "up_percentage": 51.98
+    },
+    "TATASTEEL": {
+      "raw_rows": 1240,
+      "prepared_rows": 1239,
+      "min_date": "2021-10-04",
+      "max_date": "2026-10-01",
+      "up_labels": 627,
+      "down_labels": 612,
+      "up_percentage": 50.61
+    },
+    "TCS": {
+      "raw_rows": 1240,
+      "prepared_rows": 1239,
+      "min_date": "2021-10-04",
+      "max_date": "2026-10-01",
+      "up_labels": 593,
+      "down_labels": 646,
+      "up_percentage": 47.86
+    },
+    "TECHM": {
+      "raw_rows": 1240,
+      "prepared_rows": 1239,
+      "min_date": "2021-10-04",
+      "max_date": "2026-10-01",
+      "up_labels": 616,
+      "down_labels": 623,
+      "up_percentage": 49.72
+    },
+    "TITAN": {
+      "raw_rows": 1240,
+      "prepared_rows": 1239,
+      "min_date": "2021-10-04",
+      "max_date": "2026-10-01",
+      "up_labels": 630,
+      "down_labels": 609,
+      "up_percentage": 50.85
+    },
+    "ULTRACEMCO": {
+      "raw_rows": 1240,
+      "prepared_rows": 1239,
+      "min_date": "2021-10-04",
+      "max_date": "2026-10-01",
+      "up_labels": 645,
+      "down_labels": 594,
+      "up_percentage": 52.06
+    },
+    "UPL": {
+      "raw_rows": 1240,
+      "prepared_rows": 1239,
+      "min_date": "2021-10-04",
+      "max_date": "2026-10-01",
+      "up_labels": 626,
+      "down_labels": 613,
+      "up_percentage": 50.52
+    },
+    "VEDL": {
+      "raw_rows": 1240,
+      "prepared_rows": 1239,
+      "min_date": "2021-10-04",
+      "max_date": "2026-10-01",
+      "up_labels": 661,
+      "down_labels": 578,
+      "up_percentage": 53.35
+    },
+    "WIPRO": {
+      "raw_rows": 1240,
+      "prepared_rows": 1239,
+      "min_date": "2021-10-04",
+      "max_date": "2026-10-01",
+      "up_labels": 605,
+      "down_labels": 634,
+      "up_percentage": 48.83
+    },
+    "ZEEL": {
+      "raw_rows": 1240,
+      "prepared_rows": 1239,
+      "min_date": "2021-10-04",
+      "max_date": "2026-10-01",
+      "up_labels": 590,
+      "down_labels": 649,
+      "up_percentage": 47.62
+    }
+  }
+}
