@@ -102,9 +102,15 @@ def train_classification_models(
 
     results = {}
 
-    # Naive Baseline (Predict majority class in train)
-    majority_class = int(np.bincount(y_train).argmax())
-    naive_probs = np.full(len(y_test), fill_value=float(majority_class))
+    # Naive Baseline (Predict tomorrow's direction = today's direction)
+    if "Return_1d" in test_df.columns:
+        naive_probs = (test_df["Return_1d"].fillna(0) > 0).astype(float).values
+    elif "Close" in test_df.columns and "Open" in test_df.columns:
+        naive_probs = (test_df["Close"] > test_df["Open"]).astype(float).values
+    else:
+        majority_class = int(np.bincount(y_train).argmax())
+        naive_probs = np.full(len(y_test), fill_value=float(majority_class))
+
     results["baseline"] = {
         "model": None,
         "y_pred_prob": naive_probs,
@@ -266,4 +272,95 @@ def create_lstm_dataset(series: pd.Series, lookback: int = 20):
     X = np.array(X)
     y = np.array(y)
     return X, y
+
+
+from sklearn.model_selection import RandomizedSearchCV
+import warnings
+
+def tune_hyperparameters(
+    df: pd.DataFrame,
+    feature_cols: list[str],
+    target_col: str = "Target",
+    cv_splits: list = None,
+    n_iter: int = 20,
+    random_state: int = 42,
+) -> dict:
+    """Tune hyperparameters for Random Forest and XGBoost using RandomizedSearchCV.
+    
+    cv_splits should be a list of (train_idx, val_idx) arrays from walk-forward validation.
+    Returns dictionary with best parameters and models.
+    """
+    if cv_splits is None:
+        raise ValueError("cv_splits must be provided for chronological tuning.")
+
+    X = df[feature_cols].copy()
+    y = df[target_col].values.astype(int)
+
+    # Standardize features (Wait, scaler needs to be fit per fold in CV.
+    # We should use a Pipeline with StandardScaler to avoid leakage during CV).
+    from sklearn.pipeline import Pipeline
+
+    results = {}
+
+    # Random Forest Tuning
+    rf_pipeline = Pipeline([
+        ("scaler", StandardScaler()),
+        ("model", RandomForestClassifier(random_state=random_state))
+    ])
+    rf_param_grid = {
+        "model__n_estimators": [50, 100, 200, 300],
+        "model__max_depth": [3, 5, 7, 10, None],
+        "model__min_samples_split": [2, 5, 10],
+        "model__min_samples_leaf": [1, 2, 4],
+    }
+    rf_search = RandomizedSearchCV(
+        rf_pipeline,
+        param_distributions=rf_param_grid,
+        n_iter=n_iter,
+        scoring="roc_auc",
+        cv=cv_splits,
+        random_state=random_state,
+        n_jobs=-1,
+    )
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        rf_search.fit(X, y)
+    
+    results["random_forest"] = {
+        "best_params": {k.replace("model__", ""): v for k, v in rf_search.best_params_.items()},
+        "best_score": rf_search.best_score_,
+    }
+
+    # XGBoost Tuning
+    if XGBOOST_AVAILABLE and XGBClassifier is not None:
+        xgb_pipeline = Pipeline([
+            ("scaler", StandardScaler()),
+            ("model", XGBClassifier(eval_metric="logloss", random_state=random_state))
+        ])
+        xgb_param_grid = {
+            "model__n_estimators": [50, 100, 200, 300],
+            "model__max_depth": [3, 5, 7, 9],
+            "model__learning_rate": [0.01, 0.05, 0.1, 0.2],
+            "model__subsample": [0.6, 0.8, 1.0],
+            "model__colsample_bytree": [0.6, 0.8, 1.0],
+        }
+        xgb_search = RandomizedSearchCV(
+            xgb_pipeline,
+            param_distributions=xgb_param_grid,
+            n_iter=n_iter,
+            scoring="roc_auc",
+            cv=cv_splits,
+            random_state=random_state,
+            n_jobs=-1,
+        )
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            xgb_search.fit(X, y)
+        
+        results["xgboost"] = {
+            "best_params": {k.replace("model__", ""): v for k, v in xgb_search.best_params_.items()},
+            "best_score": xgb_search.best_score_,
+        }
+
+    return results
 

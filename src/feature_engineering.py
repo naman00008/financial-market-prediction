@@ -163,6 +163,8 @@ def add_technical_indicators(df: pd.DataFrame, fillna_ffill_only: bool = True) -
         df["News_Count"] = 0.0
 
     if fillna_ffill_only:
+        # Replace inf with nan so they can be forward-filled or dropped
+        df = df.replace([np.inf, -np.inf], np.nan)
         # Only forward-fill missing values within series (NO bfill!)
         df = df.ffill()
 
@@ -181,6 +183,7 @@ def build_feature_groups() -> dict[str, list[str]]:
         "Volatility": ["ATR_14", "BB_Width_20", "BB_Pct_20", "Rolling_Vol_10", "Rolling_Vol_20"],
         "Volume": ["Volume_Change_1d", "Volume_SMA_20", "Relative_Volume_20"],
         "Sentiment": ["Sentiment_Score", "News_Count"],
+        "Market_Context": ["Market_Return_1d", "Market_Dir_1d", "Relative_Return_1d"],
     }
 
 
@@ -192,12 +195,14 @@ def create_ablation_feature_sets() -> dict[str, list[str]]:
     set2_lags = set1_ohlcv + groups["Lags"]
     set3_technical = set2_lags + groups["Trend"] + groups["Momentum"] + groups["Volatility"] + groups["Volume"]
     set4_full = set3_technical + groups["Sentiment"]
+    set5_market = set4_full + groups["Market_Context"]
 
     return {
         "E1_OHLCV_Only": set1_ohlcv,
         "E2_OHLCV_Plus_Lags": set2_lags,
         "E3_Technical_Indicators": set3_technical,
         "E4_Technical_Plus_Sentiment": set4_full,
+        "E5_Market_Context": set5_market,
     }
 
 

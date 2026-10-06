@@ -68,6 +68,17 @@ def build_and_save_panel_dataset(data_dir: str | Path = DATA_DIR, output_path: s
 
     panel_df = pd.concat(processed_frames, axis=0, ignore_index=True)
     
+    # --- PHASE 4: Add Market Context Features (Zero Lookahead) ---
+    # Calculate equal-weighted market return for each day
+    market_returns = panel_df.groupby("Date")["Return_1d"].mean().rename("Market_Return_1d")
+    panel_df = panel_df.merge(market_returns, on="Date", how="left")
+    
+    # Previous-day market direction (since we predict t+1, day t's direction is the "previous" known market direction)
+    panel_df["Market_Dir_1d"] = (panel_df["Market_Return_1d"] > 0).astype(float)
+    
+    # Stock return relative to Market
+    panel_df["Relative_Return_1d"] = panel_df["Return_1d"] - panel_df["Market_Return_1d"]
+    
     # Ensure correct column ordering
     base_cols = ["Ticker", "Date", "Open", "High", "Low", "Close", "Volume", "Target", "Next_Return"]
     other_cols = [c for c in panel_df.columns if c not in base_cols]

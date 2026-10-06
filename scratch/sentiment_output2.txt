@@ -1,0 +1,14 @@
+Loading IN-FINews Dataset...
+Mapped articles: 2132
+Running sentiment analysis...
+Aligning timestamps...
+Articles aligned to valid trading dates: 2132
+Aggregated features saved to data/v1_1_sentiment/IN_FINews_aggregated.csv
+Merging with V1 Dataset...
+
+--- Data Quality Audit After Merge ---
+Original V1 Rows: 53550
+Merged V1.1 Rows: 53550
+Rows with news: 1381 (2.58%)
+Rows with NO news: 52169 (97.42%)
+Duplicates (Ticker+Date): 0

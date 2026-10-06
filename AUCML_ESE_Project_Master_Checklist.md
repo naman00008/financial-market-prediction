@@ -245,19 +245,19 @@ Compare all experiments using the same validation procedure (`create_ablation_fe
 
 # 5. P0 — ESTABLISH BASELINES
 
-**Status:** ⬜ Not Started
+**Status:** ✅ Complete
 
 ### 5.1 Naive baseline
-- [ ] Build a simple directional baseline.
-- [ ] Example: predict tomorrow's direction using today's direction.
-- [ ] Document exactly how the baseline works.
+- [x] Build a simple directional baseline.
+- [x] Example: predict tomorrow's direction using today's direction.
+- [x] Document exactly how the baseline works.
 
 ### 5.2 Simple ML baseline
-- [ ] Logistic Regression
+- [x] Logistic Regression
 
 ### 5.3 Main ML models
-- [ ] Random Forest
-- [ ] XGBoost
+- [x] Random Forest
+- [x] XGBoost
 
 ### 5.4 Optional advanced model
 - [ ] MLP / LSTM / other sequence model only if justified and time permits.
@@ -276,31 +276,31 @@ For every model:
 
 # 6. P0 — HYPERPARAMETER TUNING
 
-**Status:** ⬜ Not Started
+**Status:** ✅ Complete
 
-- [ ] Define a reproducible search space.
-- [ ] Use validation data / walk-forward validation for tuning.
-- [ ] Do not tune on the final test set.
-- [ ] Record all trials.
-- [ ] Record best parameters.
-- [ ] Record metric values.
-- [ ] Fix random seeds where applicable.
-- [ ] Prefer Randomized Search / Optuna when appropriate instead of blindly using huge grid searches.
+- [x] Define a reproducible search space.
+- [x] Use validation data / walk-forward validation for tuning.
+- [x] Do not tune on the final test set.
+- [x] Record all trials.
+- [x] Record best parameters.
+- [x] Record metric values.
+- [x] Fix random seeds where applicable.
+- [x] Prefer Randomized Search / Optuna when appropriate instead of blindly using huge grid searches.
 
 ---
 
 # 7. P0 — PROPER EVALUATION
 
-**Status:** ⬜ Not Started
+**Status:** ✅ Complete
 
 ### 7.1 Primary classification metrics
-- [ ] Accuracy
-- [ ] Precision
-- [ ] Recall
-- [ ] F1-score
-- [ ] ROC-AUC
-- [ ] PR-AUC
-- [ ] Confusion matrix
+- [x] Accuracy
+- [x] Precision
+- [x] Recall
+- [x] F1-score
+- [x] ROC-AUC
+- [x] PR-AUC
+- [x] Confusion matrix
 - [ ] Balanced accuracy or MCC if useful
 
 ### 7.2 Time-series / financial evaluation
@@ -315,10 +315,10 @@ If a controlled trading simulation is included:
 - [ ] Buy-and-hold comparison
 
 ### 7.3 Repeated validation
-- [ ] Report results across multiple chronological validation windows.
-- [ ] Report mean and variation.
-- [ ] Where appropriate, report 95% confidence intervals.
-- [ ] Avoid reporting one lucky split as the entire conclusion.
+- [x] Report results across multiple chronological validation windows.
+- [x] Report mean and variation.
+- [x] Where appropriate, report 95% confidence intervals.
+- [x] Avoid reporting one lucky split as the entire conclusion.
 
 ### 7.4 Threshold analysis
 - [ ] Evaluate the selected probability threshold.
@@ -331,16 +331,16 @@ If a controlled trading simulation is included:
 
 # 8. P0 — ABLATION & COMPARATIVE EXPERIMENTS
 
-**Status:** ⬜ Not Started
+**Status:** ✅ Complete
 
 ### Required experiments
 
-- [ ] Baseline vs Logistic Regression
-- [ ] Logistic Regression vs Random Forest
-- [ ] Random Forest vs XGBoost
-- [ ] Price-only features vs technical features
-- [ ] Technical features vs technical + sentiment
-- [ ] Default model vs tuned model
+- [x] Baseline vs Logistic Regression
+- [x] Logistic Regression vs Random Forest
+- [x] Random Forest vs XGBoost
+- [x] Price-only features vs technical features
+- [x] Technical features vs technical + sentiment
+- [x] Default model vs tuned model
 
 ### Results table
 Create one master table containing:
@@ -987,3 +987,38 @@ This checklist is based on:
 
 The ESE rubric allocates 30 marks across problem refinement, dataset/preprocessing, methodology, implementation, results/evaluation, report, presentation, and viva. The current project handoff identifies several implementation and methodological risks that this checklist is intended to address.
 
+
+
+# 28. PERSON 1 SPECIFIC TRACKING
+
+[x] Baseline
+[x] Logistic Regression
+[x] Random Forest
+[x] XGBoost
+[x] Hyperparameter tuning
+[x] WFV evaluation
+[x] Accuracy
+[x] Precision
+[x] Recall
+[x] F1
+[x] ROC-AUC
+[x] PR-AUC
+[x] Confusion matrices
+[x] Fold-wise analysis
+[x] Confidence intervals
+[x] Feature ablation
+[x] Sentiment audit
+[x] Market-context experiment
+[x] Default vs tuned comparison
+[x] Final model selection
+[x] Final untouched test
+
+## CURRENT STATUS SUMMARY (UPDATED)
+- **Best validation model**: XGBoost (Tuned)`n- **Final selected model**: XGBoost (Tuned)
+- **Current best validation Accuracy**: 0.5264 (F5 - RF)
+- **Current best validation ROC-AUC**: 0.5764
+- **Current best validation F1**: 0.6306 (F1 - RF)
+- **Current best feature set**: All (F5)
+- **Number of completed experiments**: 13
+- **Final holdout**: Accuracy: 0.5537, ROC-AUC: 0.5826
+- **Last updated date**: 2026-10-06
