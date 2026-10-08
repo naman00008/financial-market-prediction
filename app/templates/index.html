@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Financial Market Prediction</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <!-- FontAwesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <nav class="sidebar">
+            <div class="sidebar-header">
+                <h2><i class="fa-solid fa-chart-line"></i> Market ML</h2>
+            </div>
+            <ul class="nav-links">
+                <li class="active" data-tab="analysis"><i class="fa-solid fa-magnifying-glass-chart"></i> Analysis</li>
+                <li data-tab="news"><i class="fa-regular fa-newspaper"></i> News & Sentiment</li>
+                <li data-tab="evaluation"><i class="fa-solid fa-ranking-star"></i> Model Evaluation</li>
+                <li data-tab="explainability"><i class="fa-solid fa-brain"></i> Explainability</li>
+                <li data-tab="backtest"><i class="fa-solid fa-money-bill-trend-up"></i> Strategy Backtest</li>
+            </ul>
+        </nav>
+
+        <!-- Main Content Area -->
+        <main class="content">
+            <header>
+                <h1>Dashboard</h1>
+                <div class="status-indicator">
+                    <span class="dot green"></span> API Connected
+                </div>
+            </header>
+
+            <!-- Tab Contents -->
+            <div id="analysis" class="tab-content active">
+                <h2>Live Market Analysis</h2>
+                <p>Select a stock to view historical data and technical indicators.</p>
+                <!-- Placeholder for Chart.js or Plotly.js -->
+                <div class="card chart-container">
+                    <p class="placeholder-text">Chart will render here</p>
+                </div>
+            </div>
+
+            <div id="news" class="tab-content">
+                <h2>News & Sentiment</h2>
+                <p>Real-time financial news and VADER sentiment scores.</p>
+                <div class="card">
+                    <p class="placeholder-text">News feed will render here</p>
+                </div>
+            </div>
+
+            <div id="evaluation" class="tab-content">
+                <h2>Model Evaluation</h2>
+                <p>Performance metrics for Logistic Regression, Random Forest, and XGBoost on next-day direction classification.</p>
+                <div class="card">
+                    <p class="placeholder-text">Metrics table will render here</p>
+                </div>
+            </div>
+
+            <div id="explainability" class="tab-content">
+                <h2>Model Explainability</h2>
+                <p>SHAP Feature Importance and Local Explanations.</p>
+                <div class="card">
+                    <p class="placeholder-text">SHAP plots will render here</p>
+                </div>
+            </div>
+
+            <div id="backtest" class="tab-content">
+                <h2>Strategy Backtest</h2>
+                <p>Historical simulation of ML predictions vs Buy & Hold.</p>
+                <div class="card">
+                    <p class="placeholder-text">Equity curve will render here</p>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="/static/script.js"></script>
+</body>
+</html>

@@ -26,15 +26,11 @@ except ImportError as e:
     XGBRegressor = None
     XGBOOST_AVAILABLE = False
 
-try:
-    from tensorflow.keras.layers import Dense, LSTM
-    from tensorflow.keras.models import Sequential
-    TENSORFLOW_AVAILABLE = True
-except Exception:
-    LSTM = None
-    Dense = None
-    Sequential = None
-    TENSORFLOW_AVAILABLE = False
+# TensorFlow imports disabled to prevent macOS threading deadlocks in Streamlit
+TENSORFLOW_AVAILABLE = False
+LSTM = None
+Dense = None
+Sequential = None
 
 
 def evaluate_classification(y_true: np.ndarray, y_pred_prob: np.ndarray, threshold: float = 0.5) -> dict:

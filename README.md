@@ -47,7 +47,7 @@ pip install -r requirements.txt
 python -c "import nltk; nltk.download('vader_lexicon'); nltk.download('punkt')"
 
 # Run application
-streamlit run app/live_dashboard.py
+python main.py
 ```
 
 The application will open at `http://localhost:8501`

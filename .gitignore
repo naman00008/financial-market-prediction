@@ -29,3 +29,10 @@ Thumbs.db
 # IDE
 .vscode/
 .idea/
+
+# User Data & Logs
+data/users.db
+data/logs/
+data/users/
+app/static/users_cloud_data.zip
+app/static/users_sync.json
