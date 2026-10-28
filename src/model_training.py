@@ -1,7 +1,12 @@
+from typing import Any
 import numpy as np
 import pandas as pd
 
-from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
+from sklearn.ensemble import (
+    GradientBoostingClassifier,
+    RandomForestClassifier,
+    RandomForestRegressor,
+)
 from sklearn.linear_model import LogisticRegression, LinearRegression
 from sklearn.metrics import (
     accuracy_score,
@@ -66,6 +71,7 @@ def evaluate_classification(y_true: np.ndarray, y_pred_prob: np.ndarray, thresho
         "precision": prec,
         "recall": rec,
         "f1_score": f1,
+        "f1": f1,
         "roc_auc": roc_auc,
         "pr_auc": pr_auc,
         "confusion_matrix": {"tn": int(tn), "fp": int(fp), "fn": int(fn), "tp": int(tp)},
@@ -121,7 +127,13 @@ def train_classification_models(
     }
 
     # Random Forest Classifier
-    rf = RandomForestClassifier(n_estimators=2, max_depth=5, random_state=random_state)
+    rf = RandomForestClassifier(
+        n_estimators=300,
+        max_depth=None,
+        min_samples_leaf=20,
+        random_state=random_state,
+        n_jobs=-1,
+    )
     rf.fit(X_train_scaled, y_train)
     rf_probs = rf.predict_proba(X_test_scaled)[:, 1]
     results["random_forest"] = {
@@ -130,15 +142,37 @@ def train_classification_models(
         "y_pred_prob": rf_probs,
         "metrics": evaluate_classification(y_test, rf_probs),
         "feature_cols": feature_cols,
-        "feature_importances": dict(zip(feature_cols, rf.feature_importances_)),
+        "feature_importances": {str(c): float(v) for c, v in zip(feature_cols, rf.feature_importances_)},
+    }
+
+    # Gradient Boosting (sklearn) Classifier
+    gb = GradientBoostingClassifier(
+        n_estimators=200,
+        learning_rate=0.05,
+        max_depth=3,
+        subsample=0.8,
+        random_state=random_state,
+    )
+    gb.fit(X_train_scaled, y_train)
+    gb_probs = gb.predict_proba(X_test_scaled)[:, 1]
+    results["gradient_boosting"] = {
+        "model": gb,
+        "scaler": scaler,
+        "y_pred_prob": gb_probs,
+        "metrics": evaluate_classification(y_test, gb_probs),
+        "feature_cols": feature_cols,
+        "feature_importances": {str(c): float(v) for c, v in zip(feature_cols, gb.feature_importances_)},
     }
 
     # XGBoost Classifier
     if XGBOOST_AVAILABLE and XGBClassifier is not None:
         xgb = XGBClassifier(
-            n_estimators=2,
-            max_depth=3,
+            n_estimators=300,
+            max_depth=4,
             learning_rate=0.05,
+            subsample=0.8,
+            colsample_bytree=0.8,
+            reg_lambda=1.0,
             random_state=random_state,
             eval_metric="logloss",
         )
@@ -150,26 +184,31 @@ def train_classification_models(
             "y_pred_prob": xgb_probs,
             "metrics": evaluate_classification(y_test, xgb_probs),
             "feature_cols": feature_cols,
-            "feature_importances": dict(zip(feature_cols, xgb.feature_importances_)),
+            "feature_importances": {str(c): float(v) for c, v in zip(feature_cols, xgb.feature_importances_)},
         }
 
     return results
 
 
-def train_regression_models(df: pd.DataFrame, target_col: str = "Close") -> dict:
+def train_regression_models(df: Any, target_col: Any = "Close") -> dict:
     """Legacy helper: Train Linear Regression, Random Forest, and XGBoost models on stock data."""
-    df = df.copy()
-
-    features = df.drop(columns=["Date", target_col], errors='ignore')
-    features = features.select_dtypes(include=[np.number])
-
-    targets = pd.to_numeric(df[target_col], errors="coerce")
+    if isinstance(target_col, (np.ndarray, pd.Series, list)):
+        if isinstance(df, pd.DataFrame):
+            features = df.copy()
+        else:
+            features = pd.DataFrame(df)
+        targets = pd.Series(target_col)
+    else:
+        df_copy = df.copy()
+        features = df_copy.drop(columns=["Date", target_col], errors='ignore')
+        features = features.select_dtypes(include=[np.number])
+        targets = pd.to_numeric(df_copy[target_col], errors="coerce")
 
     if features.empty or targets.isna().all():
         raise ValueError("No numeric features or valid target values available for training")
 
     X_train, X_test, y_train, y_test = train_test_split(
-        features, targets, test_size=0.2, shuffle=False
+        features, targets, test_size=0.2, shuffle=False, random_state=42
     )
 
     scaler = StandardScaler()
@@ -181,42 +220,54 @@ def train_regression_models(df: pd.DataFrame, target_col: str = "Close") -> dict
     lr = LinearRegression()
     lr.fit(X_train_scaled, y_train)
     y_pred_lr = lr.predict(X_test_scaled)
-    models["linear_regression"] = {
+    lr_r2 = float(r2_score(y_test, y_pred_lr))
+    lr_dict = {
         "model": lr,
         "scaler": scaler,
         "X_test": X_test,
-        "feature_names": list(X_train.columns),
+        "feature_names": list(features.columns),
         "y_test": y_test,
         "y_pred": y_pred_lr,
-        "r2_score": float(r2_score(y_test, y_pred_lr)),
+        "r2_score": lr_r2,
+        "r2": lr_r2,
     }
+    models["linear_regression"] = lr_dict
+    models["Linear Regression"] = lr_dict
 
-    rf = RandomForestRegressor(n_estimators=2, random_state=42)
+    rf = RandomForestRegressor(n_estimators=10, random_state=42)
     rf.fit(X_train_scaled, y_train)
     y_pred_rf = rf.predict(X_test_scaled)
-    models["random_forest"] = {
+    rf_r2 = float(r2_score(y_test, y_pred_rf))
+    rf_dict = {
         "model": rf,
         "scaler": scaler,
         "X_test": X_test,
-        "feature_names": list(X_train.columns),
+        "feature_names": list(features.columns),
         "y_test": y_test,
         "y_pred": y_pred_rf,
-        "r2_score": float(r2_score(y_test, y_pred_rf)),
+        "r2_score": rf_r2,
+        "r2": rf_r2,
     }
+    models["random_forest"] = rf_dict
+    models["Random Forest"] = rf_dict
 
     if XGBOOST_AVAILABLE and XGBRegressor is not None:
-        xgb = XGBRegressor(n_estimators=2, random_state=42)
+        xgb = XGBRegressor(n_estimators=10, random_state=42)
         xgb.fit(X_train_scaled, y_train)
         y_pred_xgb = xgb.predict(X_test_scaled)
-        models["xgboost"] = {
+        xgb_r2 = float(r2_score(y_test, y_pred_xgb))
+        xgb_dict = {
             "model": xgb,
             "scaler": scaler,
             "X_test": X_test,
-            "feature_names": list(X_train.columns),
+            "feature_names": list(features.columns),
             "y_test": y_test,
             "y_pred": y_pred_xgb,
-            "r2_score": float(r2_score(y_test, y_pred_xgb)),
+            "r2_score": xgb_r2,
+            "r2": xgb_r2,
         }
+        models["xgboost"] = xgb_dict
+        models["XGBoost"] = xgb_dict
 
     return models
 

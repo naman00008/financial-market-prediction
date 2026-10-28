@@ -60,18 +60,6 @@ class Backtester:
         # We also subtract transaction costs. (1 cost for entry, 1 for exit = 2 * cost per round trip)
         round_trip_cost = 2 * self.transaction_cost
         
-        # Debug Index
-        print("DF INDEX HEAD:", self.df.index[:5])
-        if isinstance(self.predictions, pd.Series):
-            print("PREDICTIONS INDEX HEAD:", self.predictions.index[:5])
-        else:
-            print("PREDICTIONS IS NOT SERIES")
-            
-        # Debug Signals
-        print("SIGNAL VALUE COUNTS:")
-        print(self.df['Signal'].value_counts(dropna=False))
-        print("SIGNAL == 1 COUNT:", (self.df['Signal'] == 1).sum())
-        
         # Vectorized backtest
         self.df['Strategy_Return'] = np.where(
             self.df['Signal'] == 1, 

@@ -10,13 +10,38 @@ from typing import Optional, Dict, Any
 import secrets
 import sqlite3
 
-from src.auth import register_user, authenticate_user, get_db_connection, get_user_by_username
+from src.auth import register_user, authenticate_user
 from src.tracker import track_activity
 
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
 
-# In-memory token store for active sessions: token -> user_data
+# In-memory session store: token -> {"user": user_data, "created": timestamp}
+# Sessions expire after 24 hours. Tokens live only in this process.
+SESSION_TTL_SECONDS = 24 * 60 * 60
 ACTIVE_SESSIONS: Dict[str, Dict[str, Any]] = {}
+
+
+def _create_session(user_info: Dict[str, Any]) -> str:
+    import time
+    token = secrets.token_hex(24)
+    ACTIVE_SESSIONS[token] = {
+        "user": user_info,
+        "created": time.time(),
+    }
+    return token
+
+
+def _get_session_user(auth_token: Optional[str]) -> Optional[Dict[str, Any]]:
+    import time
+    if not auth_token:
+        return None
+    session = ACTIVE_SESSIONS.get(auth_token)
+    if not session:
+        return None
+    if time.time() - session["created"] > SESSION_TTL_SECONDS:
+        ACTIVE_SESSIONS.pop(auth_token, None)
+        return None
+    return session["user"]
 
 
 class SignUpRequest(BaseModel):
@@ -58,8 +83,7 @@ async def signup(req: SignUpRequest):
         }
 
     # Generate session token
-    token = secrets.token_hex(24)
-    ACTIVE_SESSIONS[token] = user_data
+    token = _create_session(user_data)
 
     return {
         "status": "success",
@@ -91,8 +115,7 @@ async def login(req: LoginRequest):
     }
 
     # Generate session token
-    token = secrets.token_hex(24)
-    ACTIVE_SESSIONS[token] = user_info
+    token = _create_session(user_info)
 
     return {
         "status": "success",
@@ -105,30 +128,21 @@ async def login(req: LoginRequest):
 @router.get("/me")
 async def get_current_user(
     authorization: Optional[str] = Header(None),
-    token: Optional[str] = Query(None),
-    username: Optional[str] = Query(None)
+    token: Optional[str] = Query(None)
 ):
-    """Validate current session token or fetch active user profile."""
+    """Validate the current session token. A valid token is mandatory — user
+    profiles can never be fetched by username alone."""
     auth_token = token
     if authorization and authorization.startswith("Bearer "):
         auth_token = authorization.split(" ")[1]
 
-    if auth_token and auth_token in ACTIVE_SESSIONS:
+    user = _get_session_user(auth_token)
+    if user is not None:
         return {
             "status": "success",
             "authenticated": True,
-            "user": ACTIVE_SESSIONS[auth_token]
+            "user": user
         }
-
-    # Fallback lookup by username if provided
-    if username:
-        user = get_user_by_username(username)
-        if user:
-            return {
-                "status": "success",
-                "authenticated": True,
-                "user": user
-            }
 
     raise HTTPException(status_code=401, detail="Session expired or invalid credentials")
 
@@ -143,8 +157,9 @@ async def logout(
     if authorization and authorization.startswith("Bearer "):
         auth_token = authorization.split(" ")[1]
 
-    if auth_token and auth_token in ACTIVE_SESSIONS:
-        user = ACTIVE_SESSIONS.pop(auth_token)
+    user = _get_session_user(auth_token)
+    if user is not None:
+        ACTIVE_SESSIONS.pop(auth_token, None)
         track_activity(
             action="USER_LOGOUT",
             username=user.get("username", "guest"),

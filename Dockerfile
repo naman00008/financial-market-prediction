@@ -1,4 +1,5 @@
 # Multi-stage Dockerfile for Market ML Platform
+# Stage 1: Build virtualenv and install heavy dependencies
 FROM python:3.11-slim AS builder
 
 WORKDIR /build
@@ -20,6 +21,7 @@ RUN python -m venv /opt/venv && \
     /opt/venv/bin/pip install --upgrade pip setuptools wheel && \
     /opt/venv/bin/pip install -r requirements.txt
 
+# Stage 2: Minimal runtime image
 FROM python:3.11-slim AS runtime
 
 WORKDIR /app
@@ -34,13 +36,24 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
+# Copy virtualenv from builder
 COPY --from=builder /opt/venv /opt/venv
 
+# Create non-root application user
+RUN groupadd -r marketml && useradd -r -g marketml -d /app -s /sbin/nologin marketml
+
+# Copy application source code
 COPY . /app
+
+# Ensure proper permissions for runtime storage
+RUN chown -R marketml:marketml /app
+
+USER marketml
 
 EXPOSE 8000
 
-HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
     CMD curl -f http://localhost:8000/api/health || exit 1
 
-CMD ["python", "main.py"]
+# Launch canonical entrypoint
+CMD ["python", "run.py", "--host", "0.0.0.0", "--port", "8000"]

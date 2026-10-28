@@ -1,4 +1,4 @@
-# Python
+# Python Bytecode & Environments
 __pycache__/
 *.py[cod]
 *$py.class
@@ -8,8 +8,14 @@ env/
 venv/
 ENV/
 .venv/
+.pytest_cache/
+.coverage
+htmlcov/
+*.egg-info/
+dist/
+build/
 
-# Large binaries & models
+# Local Model Artifacts & Generated Databases
 *.pkl
 models/
 data/processed_dataset.csv
@@ -17,16 +23,20 @@ data/users.db
 data/logs/
 data/users/
 
-# Logs & temp
+# Logs & OS Metadata
 *.log
 .DS_Store
 .DS_Store?
 ._*
+Thumbs.db
 app/static/users_cloud_data.zip
 app/static/users_sync.json
 
-# Environment
+# Local Secrets & Environment
 .env
 .env.local
+*.pem
+*.key
 
+# Temporary Backups
 .scratch_backup/

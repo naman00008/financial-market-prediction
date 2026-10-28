@@ -90,8 +90,13 @@ def get_global_feature_importance(model, X_test):
             explainer = shap.TreeExplainer(model)
             shap_values = explainer.shap_values(X_test)
             if isinstance(shap_values, list):
-                shap_values = shap_values[1]
+                shap_values = shap_values[1] if len(shap_values) > 1 else shap_values[0]
+            elif isinstance(shap_values, np.ndarray) and shap_values.ndim == 3:
+                # Shape: (n_samples, n_features, n_classes) -> extract positive class (index 1)
+                shap_values = shap_values[:, :, 1] if shap_values.shape[-1] > 1 else shap_values[:, :, 0]
             importances = np.abs(shap_values).mean(axis=0)
+            if importances.ndim > 1:
+                importances = importances.flatten()
         except Exception:
             importances = None
 
@@ -102,6 +107,10 @@ def get_global_feature_importance(model, X_test):
             importances = np.abs(np.array(model.coef_)).flatten()
         else:
             importances = np.ones(len(cols)) / max(len(cols), 1)
+
+    importances = np.asarray(importances, dtype=float).flatten()
+    if len(importances) != len(cols):
+        importances = importances[:len(cols)]
 
     df = pd.DataFrame({
         'Feature': cols,

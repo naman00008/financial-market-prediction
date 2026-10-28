@@ -14,7 +14,8 @@ from src.feature_engineering import create_features, build_feature_groups, creat
 from src.ml_dataset import create_next_day_direction_target
 
 
-DATA_DIR = Path("c:/Users/tedha/financial-market-prediction/data")
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+DATA_DIR = PROJECT_ROOT / "data"
 PROCESSED_CSV_PATH = DATA_DIR / "processed_dataset.csv"
 
 

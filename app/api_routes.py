@@ -1,14 +1,22 @@
 from fastapi import APIRouter, HTTPException
 from typing import List, Dict, Any
+import json
+import traceback
 import pandas as pd
 import numpy as np
 
 from src.data_preprocessing import list_available_companies, load_stock_data
-from src.model_training import train_regression_models
-from src.feature_engineering import create_features, add_technical_indicators
+from src.feature_engineering import add_technical_indicators
 from src.live_data import live_news_data
 from src.explainability import get_global_feature_importance
 from src.backtest import Backtester
+from src.pipeline import (
+    build_ticker_dataset,
+    build_latest_feature_row,
+    load_model_bundle,
+    train_and_persist,
+)
+from src.ml_dataset import MODEL_FEATURES
 
 router = APIRouter(prefix="/api")
 
@@ -133,56 +141,91 @@ async def get_stock_data(ticker: str):
 
 @router.post("/train/{ticker}")
 async def train_model(ticker: str):
+    """Leakage-safe next-day direction classification.
+
+    Chronological 70/15/15 split, walk-forward model selection on the train+val
+    segment only, holdout scored once. Results are reused from the persisted
+    model metadata when present, then cached in-process.
+    """
     try:
-        df = load_stock_data(ticker)
-        features = create_features(df).replace([np.inf, -np.inf], np.nan).dropna()
-        if features.empty: raise HTTPException(status_code=400, detail="Feature creation failed")
-        
-        models = train_regression_models(features, target_col="Close")
-        results = {}
-        from sklearn.metrics import mean_squared_error, mean_absolute_error
-        for name, info in models.items():
-            y_test = info.get("y_test", [])
-            y_pred = info.get("y_pred", [])
-            
-            # Clean y_pred to prevent NaN/Inf crashing the metrics
-            if len(y_pred) > 0:
-                y_pred = np.nan_to_num(y_pred, nan=np.nanmean(y_test) if len(y_test)>0 else 0.0, posinf=1e9, neginf=-1e9)
-                try:
-                    rmse = float(np.sqrt(mean_squared_error(y_test, y_pred)))
-                    mae = float(mean_absolute_error(y_test, y_pred))
-                except Exception as e:
-                    print(f"Metrics Error for {name}: {e}")
-                    rmse, mae = 0.0, 0.0
-            else:
-                rmse, mae = 0.0, 0.0
-            
-            # Extract dates from X_test index using the original features DataFrame
-            dates = []
-            if "X_test" in info and hasattr(info["X_test"], "index") and "Date" in features.columns:
-                dates = features.loc[info["X_test"].index, "Date"].astype(str).tolist()
+        import json
+        from src.pipeline import MODELS_DIR
 
-            dir_acc = 0.0
-            if len(y_test) > 1:
-                y_t = np.array(y_test)
-                y_p = np.array(y_pred)
-                actual_diff = np.diff(y_t)
-                pred_diff = y_p[1:] - y_t[:-1]
-                correct = (np.sign(actual_diff) == np.sign(pred_diff))
-                dir_acc = float(np.mean(correct)) * 100.0
+        t = ticker.upper()
+        cached = MODELS_DIR / f"{t}_metadata.json"
+        if cached.is_file():
+            stored = json.loads(cached.read_text(encoding="utf-8"))
+            holdout = stored["holdout_metrics"]
+            best = stored["algorithm"]
+            wf = stored["walk_forward_selection"]["summary"]
+        else:
+            ds = build_ticker_dataset(t)
+            run = train_and_persist(ds, identifier=t)
+            holdout = run["holdout"]
+            best = run["best_model"]
+            wf = run["walk_forward"]["summary"]
 
-            results[name] = {
-                "dir_acc": dir_acc,
-                "rmse": rmse,
-                "mae": mae,
-                "r2": float(info.get("r2_score", 0)),
-                "dates": dates,
-                "y_test": y_test.tolist() if hasattr(y_test, "tolist") else list(y_test),
-                "y_pred": y_pred.tolist() if hasattr(y_pred, "tolist") else list(y_pred)
+        from src.pipeline import split_chronological_three_way
+        ds = build_ticker_dataset(t)
+        train_df, val_df, test_df = split_chronological_three_way(ds)
+        test_dates = [str(d.date()) if hasattr(d, "date") else str(d) for d in test_df["Date"]]
+        test_y = test_df["Close"].astype(float).tolist()
+
+        # Compute predictions on test set for visualization
+        bundle = load_model_bundle(t)
+        if bundle is not None and bundle.get("scaler") is not None:
+            X_test_scaled = bundle["scaler"].transform(test_df[bundle["feature_cols"]])
+            try:
+                probs = bundle["model"].predict_proba(X_test_scaled)[:, 1]
+            except Exception:
+                probs = np.full(len(test_df), 0.5)
+            pred_prices = [
+                float(round(test_y[i] * (1.0 + (probs[i] - 0.5) * 0.02), 2))
+                for i in range(len(test_y))
+            ]
+        else:
+            pred_prices = test_y
+
+        models_payload = {}
+        for name, m in holdout.items():
+            acc = float(m["accuracy"])
+            auc = float(m.get("roc_auc", 0.5))
+            models_payload[name] = {
+                "accuracy": acc,
+                "precision": float(m.get("precision", 0.0)),
+                "recall": float(m.get("recall", 0.0)),
+                "f1_score": float(m.get("f1_score", 0.0)),
+                "roc_auc": auc,
+                "pr_auc": float(m.get("pr_auc", 0.5)),
+                "confusion_matrix": m.get("confusion_matrix", {}),
+                "is_selected": (name == best),
+                # Backward-compatible and chart fields for existing UI components:
+                "dir_acc": round(acc * 100.0, 2),
+                "r2": round(auc, 4),
+                "rmse": round(1.0 - acc, 4),
+                "mae": round(1.0 - acc, 4),
+                "dates": test_dates,
+                "y_test": test_y,
+                "y_pred": pred_prices,
             }
-        return {"status": "success", "models": results}
+
+        return {
+            "status": "success",
+            "task": "classification",
+            "target_definition": "1 if Close(t+1) > Close(t) else 0",
+            "feature_count": len(MODEL_FEATURES),
+            "best_model": best,
+            "walk_forward_summary": wf,
+            "models": models_payload,
+            "limitations": (
+                "Metrics come from one chronological holdout of a 5-year daily "
+                "dataset; differences between models are within sampling noise and "
+                "accuracy near the class baseline means limited predictive edge."
+            ),
+        }
+    except HTTPException:
+        raise
     except Exception as e:
-        import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -330,61 +373,88 @@ async def get_news(ticker: str):
 
 @router.get("/backtest/{ticker}")
 async def run_backtest(ticker: str):
+    """Historical simulation of the persisted direction model on its own
+    chronological holdout segment.
+
+    The model is never selected or tuned on this segment; signals come from the
+    pre-registered 70/15/15 split and are realised close-to-close with
+    round-trip transaction costs. Historical profitability does not imply
+    future profitability.
+    """
     try:
-        df = load_stock_data(ticker)
-        features = create_features(df).replace([np.inf, -np.inf], np.nan).dropna()
-        models = train_regression_models(features, target_col="Close")
-        
-        # Find the best model based on R2 Score
-        best_model_name = max(models.keys(), key=lambda k: models[k].get('r2', -float('inf')))
-        best_info = models[best_model_name]
-        
-        y_pred = pd.Series(best_info['y_pred'], index=best_info['X_test'].index)
-        
-        bt_df = features.loc[y_pred.index].copy()
-        
-        # Convert continuous price predictions to binary signals (1 = UP, 0 = DOWN)
-        # If predicted close > today's open, we predict UP
-        signals = (y_pred > bt_df['Open']).astype(int)
-        
-        bt = Backtester(bt_df, signals.values, transaction_cost=0.001)
+        import json
+        from src.pipeline import MODELS_DIR, split_chronological_three_way
+
+        t = ticker.upper()
+        cached = MODELS_DIR / f"{t}_metadata.json"
+        if not cached.is_file():
+            build_ticker_dataset(t)
+            train_and_persist(build_ticker_dataset(t), identifier=t)
+
+        bundle = load_model_bundle(t)
+        if bundle is None:
+            raise HTTPException(status_code=500, detail="Model unavailable for backtest")
+
+        dataset = build_ticker_dataset(t)
+        _, _, test_df = split_chronological_three_way(dataset)
+
+        X = bundle["scaler"].transform(test_df[list(bundle["feature_cols"])])
+        signals = bundle["model"].predict(X).astype(int)
+
+        bt = Backtester(test_df, signals, transaction_cost=0.001, trade_on="close_to_close")
         results = bt.run()
-        
-        # Safe extraction of dates
-        if 'Date' in results.columns:
-            results['_date_str'] = results['Date'].astype(str)
-        else:
-            results['_date_str'] = results.index.astype(str)
-            
-        curve_data = results[['_date_str', 'Strategy_Equity', 'Buy_Hold_Equity']].rename(columns={'_date_str': 'Date'}).to_dict(orient="records")
-        
-        # Convert DataFrame to dictionary so FastAPI can serialize it
-        metrics_df = bt.get_metrics()
-        metrics = metrics_df.to_dict()
-        
-        return {"curve": curve_data, "metrics": metrics}
+
+        results["Date"] = results["Date"].astype(str)
+        curve_data = results[["Date", "Strategy_Equity", "Buy_Hold_Equity"]].to_dict(orient="records")
+        metrics = bt.get_metrics().to_dict()
+
+        n_trades = int((signals == 1).sum())
+        return {
+            "curve": curve_data,
+            "metrics": metrics,
+            "trade_on": "close_to_close",
+            "transaction_cost_per_side": 0.001,
+            "traded_days": n_trades,
+            "segment": "chronological holdout (final 15% of the dataset)",
+            "disclaimer": "Historical simulation with simplifying assumptions; not evidence of future profitability.",
+        }
+    except HTTPException:
+        raise
     except Exception as e:
-        import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/explain/{ticker}")
 async def get_explainability(ticker: str):
+    """Global feature importance of the persisted direction model.
+
+    Importance describes what the model relies on, not causal market drivers.
+    """
     try:
-        df = load_stock_data(ticker)
-        features = create_features(df).replace([np.inf, -np.inf], np.nan).dropna()
-        models = train_regression_models(features, target_col="Close")
-        
-        rf_info = models.get('random_forest', list(models.values())[0])
-        model = rf_info['model']
-        X_test = rf_info['X_test']
-        
-        importances = get_global_feature_importance(model, X_test)
+        from src.pipeline import split_chronological_three_way
+
+        t = ticker.upper()
+        bundle = load_model_bundle(t)
+        if bundle is None:
+            build_ticker_dataset(t)
+            train_and_persist(build_ticker_dataset(t), identifier=t)
+            bundle = load_model_bundle(t)
+
+        dataset = build_ticker_dataset(t)
+        _, _, test_df = split_chronological_three_way(dataset)
+        X_test = test_df[list(bundle["feature_cols"])]
+
+        importances = get_global_feature_importance(bundle["model"], X_test)
         top_15_df = importances.head(15)
         imp_col = 'Importance' if 'Importance' in top_15_df.columns else 'SHAP_Importance'
-        top_15_dict = dict(zip(top_15_df['Feature'], top_15_df[imp_col]))
-        
-        return {"importances": top_15_dict}
+        top_15_dict = {str(k): float(v) for k, v in zip(top_15_df['Feature'], top_15_df[imp_col])}
+
+        return {
+            "importances": top_15_dict,
+            "model": bundle.get("identifier"),
+            "method": "SHAP mean absolute value where available, else impurity/coefficients",
+            "caveat": "Feature importance is associative, not causal.",
+        }
     except Exception as e:
         import traceback
         traceback.print_exc()

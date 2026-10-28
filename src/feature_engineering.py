@@ -162,6 +162,12 @@ def add_technical_indicators(df: pd.DataFrame, fillna_ffill_only: bool = True) -
     if "News_Count" not in df.columns:
         df["News_Count"] = 0.0
 
+    # Aliases for unit tests and legacy compatibility
+    df["RSI"] = df["RSI_14"]
+    df["MACD"] = df["MACD_12_26_9"]
+    df["BB_Upper"] = df["BBU_20_2.0"]
+    df["BB_Lower"] = df["BBL_20_2.0"]
+
     if fillna_ffill_only:
         # Only forward-fill missing values within series (NO bfill!)
         df = df.ffill()

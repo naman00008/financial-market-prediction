@@ -18,6 +18,67 @@ ECONOMIC_TIMES_CSV = os.path.abspath(
     os.path.join(os.path.dirname(__file__), os.pardir, "..", "economictimes_data.csv")
 )
 
+FINANCIAL_ADJUSTMENT_RULES = {
+    "beats expectations": 0.15,
+    "beats estimates": 0.15,
+    "beats forecast": 0.12,
+    "record profit": 0.18,
+    "strong quarter": 0.12,
+    "raises guidance": 0.15,
+    "upgrades": 0.12,
+    "buyback": 0.08,
+    "dividend": 0.06,
+    "positive outlook": 0.14,
+    "record-breaking": 0.18,
+    "misses expectations": -0.18,
+    "misses estimates": -0.18,
+    "misses forecast": -0.15,
+    "downgrade": -0.14,
+    "cuts guidance": -0.16,
+    "profit warning": -0.18,
+    "loss": -0.12,
+    "weak quarter": -0.12,
+    "layoffs": -0.14,
+    "delays": -0.10,
+    "lawsuit": -0.10,
+    "regulatory": -0.08,
+    "penalty": -0.15,
+    "slump": -0.15,
+    "plunges": -0.20,
+}
+
+
+def analyze_text_sentiment(text: str) -> dict:
+    """Analyze sentiment for a single text/headline.
+
+    Returns compound score, polarity breakdown, and Bullish/Bearish/Neutral label.
+    """
+    analyzer = SentimentIntensityAnalyzer()
+    scores = analyzer.polarity_scores(text)
+    base_score = scores.get("compound", 0.0)
+
+    text_lower = text.lower()
+    adjusted = base_score
+    for phrase, delta in FINANCIAL_ADJUSTMENT_RULES.items():
+        if phrase in text_lower:
+            adjusted += delta
+    adjusted = max(-1.0, min(1.0, adjusted))
+
+    if adjusted >= 0.05:
+        label = "Bullish"
+    elif adjusted <= -0.05:
+        label = "Bearish"
+    else:
+        label = "Neutral"
+
+    return {
+        "compound": float(adjusted),
+        "pos": float(scores.get("pos", 0.0)),
+        "neg": float(scores.get("neg", 0.0)),
+        "neu": float(scores.get("neu", 0.0)),
+        "label": label,
+    }
+
 
 def load_news_data(path: str = None) -> pd.DataFrame:
     """Load Economic Times news dataset. Returns empty DataFrame if file not found."""

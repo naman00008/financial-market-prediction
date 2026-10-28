@@ -1285,46 +1285,77 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (trainData.status === 'success' && trainData.models) {
                     let html = '';
                     let bestModel = '';
-                    let bestR2 = -Infinity;
-                    
-                    // Find best model by R2
+                    let bestScore = -Infinity;
+
+                    const isClassification = trainData.task === 'classification';
+                    if (isClassification) {
+                        const ths = document.querySelectorAll('#model-metrics-table thead th');
+                        if (ths && ths.length >= 5) {
+                            ths[1].innerText = 'ACCURACY';
+                            ths[2].innerText = 'PRECISION';
+                            ths[3].innerText = 'ROC-AUC';
+                            ths[4].innerText = 'F1 SCORE';
+                        }
+                    }
+
+                    // Find best model
                     for (const [name, metrics] of Object.entries(trainData.models)) {
-                        if (metrics.r2 > bestR2) {
-                            bestR2 = metrics.r2;
+                        const score = isClassification ? (metrics.accuracy || 0) : (metrics.r2 || -Infinity);
+                        if (score > bestScore) {
+                            bestScore = score;
                             bestModel = name;
                         }
                     }
-                    
+                    if (trainData.best_model) {
+                        bestModel = trainData.best_model;
+                    }
+
                     for (const [name, metrics] of Object.entries(trainData.models)) {
-                        const isBest = name === bestModel;
+                        const isBest = (name === bestModel) || metrics.is_selected;
                         const badge = isBest ? `<span style="margin-left: 10px; background-color: rgba(0, 184, 82, 0.2); color: #00b852; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 600;">BEST</span>` : '';
-                        
+
+                        let col2, col3, col4, col5;
+                        if (isClassification && metrics.accuracy !== undefined) {
+                            col2 = (metrics.accuracy * 100).toFixed(1) + '%';
+                            col3 = metrics.precision !== undefined ? (metrics.precision * 100).toFixed(1) + '%' : 'N/A';
+                            col4 = metrics.roc_auc !== undefined ? metrics.roc_auc.toFixed(4) : 'N/A';
+                            col5 = metrics.f1_score !== undefined ? (metrics.f1_score * 100).toFixed(1) + '%' : 'N/A';
+                        } else {
+                            col2 = metrics.rmse !== undefined ? metrics.rmse.toFixed(4) : 'N/A';
+                            col3 = metrics.mae !== undefined ? metrics.mae.toFixed(4) : 'N/A';
+                            col4 = metrics.r2 !== undefined ? metrics.r2.toFixed(4) : 'N/A';
+                            col5 = metrics.dir_acc !== undefined ? metrics.dir_acc.toFixed(1) + '%' : 'N/A';
+                        }
+
                         html += `
                             <tr style="border-bottom: 1px solid #21262d;">
                                 <td style="padding: 15px 10px; font-weight: 500; color: #fff;">${name.replace('_', ' ')} ${badge}</td>
-                                <td style="padding: 15px 10px;">${metrics.rmse.toFixed(4)}</td>
-                                <td style="padding: 15px 10px;">${metrics.mae.toFixed(4)}</td>
-                                <td style="padding: 15px 10px; color: ${metrics.r2 > 0.5 ? '#00b852' : (metrics.r2 > 0 ? '#ff8a65' : '#ff5722')};">${metrics.r2.toFixed(4)}</td>
-                                <td style="padding: 15px 10px; color: ${metrics.dir_acc > 55 ? '#00b852' : '#8b949e'}; font-weight: bold;">${metrics.dir_acc ? metrics.dir_acc.toFixed(1) + '%' : 'N/A'}</td>
+                                <td style="padding: 15px 10px;">${col2}</td>
+                                <td style="padding: 15px 10px;">${col3}</td>
+                                <td style="padding: 15px 10px; color: ${(metrics.roc_auc || metrics.r2 || 0) > 0.5 ? '#00b852' : '#ff8a65'};">${col4}</td>
+                                <td style="padding: 15px 10px; color: ${(metrics.accuracy || (metrics.dir_acc ? metrics.dir_acc/100 : 0)) > 0.52 ? '#00b852' : '#8b949e'}; font-weight: bold;">${col5}</td>
                             </tr>
                         `;
                     }
                     tbody.innerHTML = html;
-                    
+
                     // Render Predicted vs Actual Chart safely
                     try {
                         const titleSpan = document.getElementById('chart-model-title');
                         if (titleSpan) {
                             titleSpan.innerText = ` (ALL MODELS)`;
                         }
-                        
+
                         let plotData = [];
                         let mDataMain = null;
-                        
+
                         const colors = {
                             'linear_regression': '#0000ff',
+                            'logistic_regression': '#0000ff',
                             'random_forest': '#00e676',
-                            'xgboost': '#ff9100'
+                            'gradient_boosting': '#ab47bc',
+                            'xgboost': '#ff9100',
+                            'baseline': '#8b949e'
                         };
                         
                         for (const [mName, mData] of Object.entries(trainData.models)) {

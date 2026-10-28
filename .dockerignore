@@ -1,0 +1,34 @@
+# Git & Metadata
+.git/
+.gitignore
+.gitattributes
+
+# Python Bytecode & Environments
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.venv/
+venv/
+env/
+ENV/
+.pytest_cache/
+.coverage
+htmlcov/
+*.egg-info/
+
+# Local Databases, Logs & User Dossiers
+data/users.db
+data/logs/
+data/users/
+*.log
+
+# OS Metadata & Local Configs
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
+.env
+.env.local
+.scratch_backup/
+

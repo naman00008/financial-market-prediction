@@ -56,8 +56,12 @@ def verify_password(password: str, stored_hash: str, salt: str) -> bool:
 
 def save_user_credentials_record(username: str, user_dict: Dict[str, Any], pwd_hash: str, salt: str) -> None:
     """
-    Save complete credential and authentication records directly inside the user's folder:
-    data/users/<username>/credentials.txt and credentials.json
+    Save the structured credentials record inside the user's folder:
+    data/users/<username>/credentials.json
+
+    A human-readable copy is deliberately NOT written: password hashes and
+    salts should exist only in the JSON record and the database, not as
+    casually readable text files.
     """
     safe_username = "".join(c for c in username if c.isalnum() or c in ("_", "-")).lower()
     user_folder = os.path.join(USERS_DIR, safe_username)
@@ -65,7 +69,7 @@ def save_user_credentials_record(username: str, user_dict: Dict[str, Any], pwd_h
 
     reg_date = user_dict.get("created_at") or user_dict.get("registered_at") or datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
 
-    # 1. Structured JSON credentials record
+    # Structured JSON credentials record
     cred_json_path = os.path.join(user_folder, "credentials.json")
     cred_data = {
         "username": safe_username,
@@ -81,31 +85,6 @@ def save_user_credentials_record(username: str, user_dict: Dict[str, Any], pwd_h
     try:
         with open(cred_json_path, "w", encoding="utf-8") as f:
             json.dump(cred_data, f, indent=2)
-    except Exception:
-        pass
-
-    # 2. Institutional Human-Readable Plaintext Credentials Dossier
-    cred_txt_path = os.path.join(user_folder, "credentials.txt")
-    cred_lines = [
-        "=" * 80,
-        f" USER CREDENTIALS & SECURITY RECORD: @{safe_username}",
-        "=" * 80,
-        f" Username:          @{safe_username}",
-        f" Full Name:         {cred_data['full_name']}",
-        f" Email Address:     {cred_data['email']}",
-        f" Membership Tier:   {str(cred_data['tier']).upper()}",
-        f" Registration Date: {cred_data['registered_at']}",
-        f" Storage Location:  data/users/{safe_username}/",
-        f" Security Method:   PBKDF2-HMAC-SHA256 (100,000 Rounds)",
-        f" Cryptographic Salt: {salt}",
-        f" Password Hash:     {pwd_hash}",
-        "=" * 80,
-        " This record is automatically synchronized with SQLite data/users.db.",
-        "=" * 80,
-    ]
-    try:
-        with open(cred_txt_path, "w", encoding="utf-8") as f:
-            f.write("\n".join(cred_lines) + "\n")
     except Exception:
         pass
 
@@ -172,7 +151,10 @@ def sync_db_and_folders() -> None:
                 salt = cred_data.get("salt")
 
                 if not pwd_hash or not salt:
-                    pwd_hash, salt = hash_password("MarketPulse123!")
+                    # Users restored from folders without verifiable credentials
+                    # cannot be trusted with a default password; they are skipped
+                    # and must re-register.
+                    continue
 
                 cursor.execute("""
                     INSERT INTO users (username, email, password_hash, salt, full_name, tier, created_at)
@@ -268,7 +250,7 @@ def register_user(
         # 2. Store credentials file in user folder
         save_user_credentials_record(username, user_info, pwd_hash, salt)
 
-        # 3. Record registration audit event with full payload for cloud synchronization
+        # 3. Record registration audit event (credentials are never logged)
         track_activity(
             action="USER_REGISTRATION",
             username=username,
@@ -276,8 +258,6 @@ def register_user(
                 "email": email,
                 "full_name": full_name or username,
                 "tier": tier,
-                "password_hash": pwd_hash,
-                "salt": salt,
                 "created_at": created_at_str
             }
         )
@@ -336,7 +316,7 @@ def authenticate_user(username_or_email: str, password: str) -> Tuple[bool, str,
             # Ensure credentials files are saved in folder
             save_user_credentials_record(user["username"], user_data, user["password_hash"], user["salt"])
 
-            # Record login audit event with credentials for cloud synchronization
+            # Record login audit event (credentials are never logged)
             track_activity(
                 action="USER_LOGIN",
                 username=user["username"],
@@ -345,8 +325,6 @@ def authenticate_user(username_or_email: str, password: str) -> Tuple[bool, str,
                     "email": user["email"],
                     "full_name": user["full_name"],
                     "tier": user["tier"],
-                    "password_hash": user["password_hash"],
-                    "salt": user["salt"],
                     "created_at": user["created_at"]
                 }
             )

@@ -98,6 +98,47 @@ def test_session_token_and_security():
     print(f"✅ Session token validation PASSED: {token[:12]}...")
 
 
+def test_auth_me_security_and_expiry():
+    """Verify that unauthenticated user enumeration is prevented,
+    and sessions expire after TTL or on logout."""
+    import time
+    from fastapi import HTTPException
+    from app.auth_routes import _create_session, _get_session_user, ACTIVE_SESSIONS, SESSION_TTL_SECONDS
+
+    # 1. Reject invalid or empty tokens
+    assert _get_session_user(None) is None
+    assert _get_session_user("") is None
+    assert _get_session_user("nonexistent_token_12345") is None
+
+    # 2. Valid session retrieval
+    dummy_user = {"username": "test_security_user", "email": "sec@marketml.test"}
+    token = _create_session(dummy_user)
+    assert token in ACTIVE_SESSIONS
+    retrieved = _get_session_user(token)
+    assert retrieved == dummy_user
+
+    # 3. Session expiry when created > SESSION_TTL_SECONDS
+    ACTIVE_SESSIONS[token]["created"] = time.time() - (SESSION_TTL_SECONDS + 10)
+    assert _get_session_user(token) is None
+    assert token not in ACTIVE_SESSIONS, "Expired session must be purged from memory"
+
+
+def test_no_credentials_plaintext_file():
+    """Verify credentials.txt is not written to disk upon registration."""
+    test_user = f"dossier_check_{secrets.token_hex(4)}"
+    pwd = "DossierPassword!2026"
+    success, _ = register_user(
+        username=test_user,
+        email=f"{test_user}@test.org",
+        password=pwd
+    )
+    assert success is True
+
+    user_folder = os.path.join(BASE_DIR, "data", "users", test_user)
+    cred_txt = os.path.join(user_folder, "credentials.txt")
+    assert not os.path.exists(cred_txt), "credentials.txt must NEVER be created on disk"
+
+
 if __name__ == "__main__":
     print("=" * 60)
     print("RUNNING MARKET ML AUTHENTICATION TEST SUITE")

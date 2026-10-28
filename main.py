@@ -13,10 +13,12 @@ from fastapi.middleware.cors import CORSMiddleware
 app = FastAPI(title="Market ML: Cloud-Native Market Prediction & Risk Analysis Platform")
 
 # Add CORS Middleware
+# Same-origin dashboard: wildcard origins cannot be combined with credentialed
+# requests, so credential support stays off.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -35,6 +37,7 @@ from app.api_routes import router as api_router
 from app.forecast_routes import forecast_router
 from app.portfolio_routes import portfolio_router
 from app.auth_routes import router as auth_router
+from app.ml_routes import router as ml_router
 
 # Mount static files
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
@@ -44,6 +47,7 @@ app.include_router(api_router)
 app.include_router(forecast_router)
 app.include_router(portfolio_router)
 app.include_router(auth_router)
+app.include_router(ml_router)
 
 # Setup Jinja2 templates
 templates = Jinja2Templates(directory=TEMPLATES_DIR)
